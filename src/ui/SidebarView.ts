@@ -1,4 +1,6 @@
 import { ItemView, WorkspaceLeaf } from 'obsidian';
+import { renderCommentCard, CommentCardCallbacks } from './CommentCard';
+import type { ReviewComment } from '../types';
 
 export const VIEW_TYPE_EDITOR = 'editor-plugin-sidebar';
 
@@ -27,4 +29,21 @@ export class SidebarView extends ItemView {
   }
 
   async onClose(): Promise<void> {}
+
+  renderCards(comments: Array<{ comment: ReviewComment; stale: boolean }>, cb: CommentCardCallbacks): void {
+    const cards = this.containerEl.querySelector('#editor-cards');
+    if (!cards) return;
+    cards.empty();
+    for (const item of comments) {
+      renderCommentCard(cards as HTMLElement, item.comment, item.stale, cb);
+    }
+  }
+
+  setBanner(text: string | null): void {
+    const banner = this.containerEl.querySelector('#editor-banner') as HTMLElement;
+    if (!banner) return;
+    if (!text) { banner.empty(); banner.style.display = 'none'; return; }
+    banner.style.display = 'block';
+    banner.setText(text);
+  }
 }
