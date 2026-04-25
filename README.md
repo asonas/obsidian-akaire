@@ -1,6 +1,6 @@
-# Obsidian Editor Plugin
+# Akaire (赤入れ)
 
-Local AI editor that reviews your writing using Claude Code CLI, complementing textlint for grammar.
+Obsidian editor plugin that reviews your writing using Claude Code CLI, complementing textlint for grammar. The name comes from 赤入れ (akaire), the Japanese editorial term for proofreading marks made in red ink.
 
 ## Requirements
 
@@ -26,16 +26,16 @@ Directory inheritance: `<dir>/.editor.md` の内容が配下のノートのプ�
 
 ## Commands
 
-- `Editor: Review whole note` — ノート全文をレビュー
-- `Editor: Review changed paragraphs` — 前回レビュー以降に変更された段落のみをレビュー
-- `Editor: Open sidebar` — サイドバーを開く
+- `Akaire: Review whole note` — ノート全文をレビュー
+- `Akaire: Review changed paragraphs` — 前回レビュー以降に変更された段落のみをレビュー
+- `Akaire: Open sidebar` — サイドバーを開く
 
 ## Development
 
 ```bash
 npm install
 npm run dev   # esbuild
-npm test      # vitest (22 tests)
+npm test      # vitest (25 tests)
 npm run build # production build
 ```
 

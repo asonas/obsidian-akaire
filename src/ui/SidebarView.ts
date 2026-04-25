@@ -15,13 +15,13 @@ export class SidebarView extends ItemView {
   }
 
   getViewType(): string { return VIEW_TYPE_EDITOR; }
-  getDisplayText(): string { return 'Editor'; }
+  getDisplayText(): string { return 'Akaire'; }
   getIcon(): string { return 'edit-3'; }
 
   async onOpen(): Promise<void> {
     const root = this.containerEl.children[1];
     root.empty();
-    root.createEl('h4', { text: 'Editor' });
+    root.createEl('h4', { text: 'Akaire' });
     root.createEl('div', { cls: 'editor-banner', attr: { id: 'editor-banner' } });
     root.createEl('div', { cls: 'editor-cards', attr: { id: 'editor-cards' } });
     root.createEl('hr');

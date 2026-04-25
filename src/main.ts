@@ -49,20 +49,20 @@ export default class EditorPlugin extends Plugin {
 
     this.addCommand({
       id: 'review-changed',
-      name: 'Editor: Review changed paragraphs',
+      name: 'Akaire: Review changed paragraphs',
       callback: () => this.runReview('diff'),
     });
     this.addCommand({
       id: 'review-full',
-      name: 'Editor: Review whole note',
+      name: 'Akaire: Review whole note',
       callback: () => this.runReview('full'),
     });
     this.addCommand({
       id: 'open-sidebar',
-      name: 'Editor: Open sidebar',
+      name: 'Akaire: Open sidebar',
       callback: () => this.activateView(),
     });
-    this.addRibbonIcon('edit-3', 'Open Editor', () => this.activateView());
+    this.addRibbonIcon('edit-3', 'Open Akaire', () => this.activateView());
   }
 
   async onunload() {
