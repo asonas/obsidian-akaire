@@ -24,6 +24,41 @@ const sampleComment: ReviewComment = {
   message: '簡潔に',
 };
 
+describe('ReviewSession.runReview full', () => {
+  it('calls runner.review and stores returned comments', async () => {
+    const editor = makeEditorBridge('これは冗長な表現です。');
+    const fakeRunner = {
+      review: vi.fn(async () => ({
+        comments: [sampleComment],
+        newSessionId: 's1',
+      })),
+      chat: vi.fn(),
+    };
+    const fakeTextlint = {
+      lint: vi.fn(async () => ({ available: true, messages: [] })),
+    };
+    const fakeResolver = {
+      resolvePrompt: vi.fn(async () => ({ systemPrompt: 'be terse', sources: [] })),
+    };
+
+    const session = new ReviewSession({
+      notePath: 'note.md',
+      editor,
+      anchorStore: { load: async () => [], save: async () => {} },
+      runner: fakeRunner,
+      textlint: fakeTextlint,
+      promptResolver: fakeResolver,
+      vaultDir: '/vault',
+    });
+
+    await session.runReview('full');
+
+    expect(fakeRunner.review).toHaveBeenCalledOnce();
+    expect(session.comments).toEqual([sampleComment]);
+    expect(session.sessionId).toBe('s1');
+  });
+});
+
 describe('ReviewSession.rehydrate', () => {
   it('loads anchors from store and matches them to current text', async () => {
     const editor = makeEditorBridge('これは冗長な表現です。');
