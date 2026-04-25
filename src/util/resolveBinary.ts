@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { log } from './logger';
 
 const cache = new Map<string, string>();
 
@@ -12,20 +13,40 @@ const cache = new Map<string, string>();
  * fails so the caller still gets a recognizable spawn error.
  */
 export function resolveBinary(name: string): string {
-  if (cache.has(name)) return cache.get(name)!;
-  try {
-    const out = execFileSync('/bin/bash', ['-lc', `command -v ${name}`], {
-      encoding: 'utf8',
-      timeout: 3000,
-    });
-    const resolved = out.trim();
-    if (resolved) {
-      cache.set(name, resolved);
-      return resolved;
-    }
-  } catch {
-    // fall through
+  if (cache.has(name)) {
+    const cached = cache.get(name)!;
+    log('debug', 'resolveBinary cache hit', { name, cached });
+    return cached;
   }
+
+  const shells = ['/bin/zsh', '/bin/bash'];
+  for (const shell of shells) {
+    try {
+      const out = execFileSync(shell, ['-lc', `command -v ${name}`], {
+        encoding: 'utf8',
+        timeout: 3000,
+      });
+      const resolved = out.trim();
+      log('info', 'resolveBinary attempted', {
+        name,
+        shell,
+        resolved,
+        envPath: process.env.PATH,
+      });
+      if (resolved) {
+        cache.set(name, resolved);
+        return resolved;
+      }
+    } catch (e) {
+      log('warn', 'resolveBinary shell error', {
+        name,
+        shell,
+        error: (e as Error).message,
+      });
+    }
+  }
+
+  log('error', 'resolveBinary failed, using bare name', { name });
   cache.set(name, name);
   return name;
 }

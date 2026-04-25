@@ -9,6 +9,7 @@ import { AnchorStore } from './core/AnchorStore';
 import { PromptResolver } from './core/PromptResolver';
 import { makeFsApi, makeAnchorFsApi } from './util/obsidianFs';
 import { resolveBinary } from './util/resolveBinary';
+import { log, logPath } from './util/logger';
 import { anchorField, setAnchorMarks, clearAnchorMarks } from './editor/decoration';
 
 export default class EditorPlugin extends Plugin {
@@ -22,14 +23,24 @@ export default class EditorPlugin extends Plugin {
 
   async onload() {
     const vaultRoot = (this.app.vault.adapter as any).basePath as string;
+    log('info', 'plugin onload start', {
+      vaultRoot,
+      logPath: logPath(),
+      processPath: process.env.PATH,
+      processCwd: process.cwd(),
+    });
+
+    const claudeBin = resolveBinary('claude');
+    const textlintBin = resolveBinary('textlint');
+    log('info', 'binaries resolved', { claudeBin, textlintBin });
 
     this.runner = new ClaudeRunner({
-      claudeBinary: resolveBinary('claude'),
+      claudeBinary: claudeBin,
       spawn,
       timeoutMs: 30_000,
     });
     this.textlint = new TextlintRunner({
-      binary: resolveBinary('textlint'),
+      binary: textlintBin,
       spawn,
     });
     this.anchorStore = new AnchorStore({
@@ -110,8 +121,11 @@ export default class EditorPlugin extends Plugin {
     sidebarView?.bind?.(this.session, cm);
 
     // textlintの可用性を確認しバナー表示
-    const probe = await this.textlint.lint(view.file.path);
+    const absoluteFilePath = `${(this.app.vault.adapter as any).basePath}/${view.file.path}`;
+    log('info', 'onLeafChange probing textlint', { filePath: view.file.path, absoluteFilePath });
+    const probe = await this.textlint.lint(absoluteFilePath);
     if (myGen !== this.leafGen) return;
+    log('info', 'textlint probe result', probe);
     if (!probe.available) {
       sidebarView?.setBanner(`textlint が見つかりません — ${probe.reason}`);
     } else {
