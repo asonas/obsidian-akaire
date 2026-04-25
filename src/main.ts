@@ -37,7 +37,7 @@ export default class EditorPlugin extends Plugin {
     this.runner = new ClaudeRunner({
       claudeBinary: claudeBin,
       spawn,
-      timeoutMs: 30_000,
+      timeoutMs: 180_000, // claude -p は10〜60秒かかることがあるので余裕を持つ
     });
     this.textlint = new TextlintRunner({
       binary: textlintBin,
