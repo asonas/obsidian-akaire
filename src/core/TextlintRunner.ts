@@ -1,4 +1,5 @@
 import type { ChildProcess } from 'node:child_process';
+import { dirname, isAbsolute } from 'node:path';
 import type { TextlintResult, TextlintMessage } from '../types';
 import { log } from '../util/logger';
 
@@ -13,9 +14,11 @@ export class TextlintRunner {
 
   async lint(filePath: string): Promise<TextlintResult> {
     const args = [...(this.opts.preArgs ?? []), '-f', 'json', filePath];
-    log('info', 'TextlintRunner.lint spawn', { binary: this.opts.binary, args });
+    // textlint は CWD から `.textlintrc` を探すので、ファイルのあるディレクトリを cwd にする
+    const cwd = isAbsolute(filePath) ? dirname(filePath) : undefined;
+    log('info', 'TextlintRunner.lint spawn', { binary: this.opts.binary, args, cwd });
     return new Promise((resolve) => {
-      const child = this.opts.spawn(this.opts.binary, args);
+      const child = this.opts.spawn(this.opts.binary, args, cwd ? { cwd } : undefined);
       let stdout = '';
       let stderr = '';
       child.stdout?.on('data', (d) => { stdout += d.toString(); });

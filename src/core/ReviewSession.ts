@@ -83,7 +83,8 @@ export class ReviewSession {
       this.opts.notePath
     );
     if (signal?.aborted) return;
-    const textlintResult = await this.opts.textlint.lint(this.opts.notePath);
+    const absoluteFilePath = `${this.opts.vaultDir}/${this.opts.notePath}`;
+    const textlintResult = await this.opts.textlint.lint(absoluteFilePath);
     if (signal?.aborted) return;
     const findings = textlintResult.available ? textlintResult.messages : [];
 
