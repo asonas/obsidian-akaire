@@ -88,6 +88,51 @@ describe('ReviewSession.runReview full', () => {
   });
 });
 
+describe('ReviewSession.applyComment', () => {
+  it('replaces anchor range with suggestion and marks resolved', async () => {
+    const editor = makeEditorBridge('これは冗長な表現です。');
+    const session = new ReviewSession({
+      notePath: 'n.md', editor,
+      anchorStore: { load: async () => [], save: async () => {} },
+      runner: null as any, textlint: null as any, promptResolver: null as any,
+      vaultDir: '/v',
+    });
+    (session as any).addCommentAnchor({
+      ...sampleComment, suggestion: '冗長',
+    });
+
+    session.applyComment('c1');
+
+    expect(editor.text).toBe('これは冗長です。');
+    expect(session.comments.find((c) => c.id === 'c1')).toBeTruthy();
+    expect((session as any).anchors.get('c1').resolved).toBe(true);
+  });
+});
+
+describe('ReviewSession.sendChatMessage', () => {
+  it('forwards to runner.chat with current sessionId', async () => {
+    const editor = makeEditorBridge('text');
+    const fakeRunner = {
+      review: vi.fn(),
+      chat: vi.fn(async () => ({ reply: 'ok' })),
+    };
+    const session = new ReviewSession({
+      notePath: 'n.md', editor,
+      anchorStore: { load: async () => [], save: async () => {} },
+      runner: fakeRunner, textlint: null as any, promptResolver: null as any,
+      vaultDir: '/v',
+    });
+    session.sessionId = 's1';
+
+    const reply = await session.sendChatMessage('hi');
+
+    expect(reply).toBe('ok');
+    expect(fakeRunner.chat).toHaveBeenCalledWith({
+      message: 'hi', sessionId: 's1', vaultDir: '/v',
+    });
+  });
+});
+
 describe('ReviewSession.rehydrate', () => {
   it('loads anchors from store and matches them to current text', async () => {
     const editor = makeEditorBridge('これは冗長な表現です。');
