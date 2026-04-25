@@ -5,6 +5,8 @@ import path from 'node:path';
 
 const FAKE_OK = path.resolve(__dirname, 'fixtures/fake-claude.sh');
 const FAKE_ERR = path.resolve(__dirname, 'fixtures/fake-claude-error.sh');
+const FAKE_CHAT = path.resolve(__dirname, 'fixtures/fake-claude-chat.sh');
+const FAKE_SLOW = path.resolve(__dirname, 'fixtures/fake-claude-slow.sh');
 
 describe('ClaudeRunner.review', () => {
   it('parses comments and returns session id', async () => {
@@ -41,5 +43,39 @@ describe('ClaudeRunner.review', () => {
         vaultDir: '/tmp',
       })
     ).rejects.toThrow(/exit 1/);
+  });
+});
+
+describe('ClaudeRunner.chat', () => {
+  it('returns reply text', async () => {
+    const runner = new ClaudeRunner({
+      claudeBinary: FAKE_CHAT,
+      spawn: nodeSpawn,
+      timeoutMs: 5000,
+    });
+    const r = await runner.chat({
+      message: 'もっと固く',
+      sessionId: 'fake-session-123',
+      vaultDir: '/tmp',
+    });
+    expect(r.reply).toContain('固い表現');
+  });
+});
+
+describe('ClaudeRunner.review timeout', () => {
+  it('rejects after timeoutMs', async () => {
+    const runner = new ClaudeRunner({
+      claudeBinary: FAKE_SLOW,
+      spawn: nodeSpawn,
+      timeoutMs: 200,
+    });
+    await expect(
+      runner.review({
+        text: 'x',
+        systemPrompt: 'y',
+        sessionId: null,
+        vaultDir: '/tmp',
+      })
+    ).rejects.toThrow(/timeout/);
   });
 });
