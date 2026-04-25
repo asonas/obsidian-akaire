@@ -1,0 +1,38 @@
+.editor-anchor-ai {
+  border-bottom: 1px dotted var(--color-purple);
+}
+.editor-anchor-textlint {
+  border-bottom: 2px wavy var(--color-red);
+}
+.editor-card {
+  border-left: 3px solid var(--color-purple);
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  background: var(--background-secondary);
+  border-radius: 4px;
+}
+.editor-card-stale { opacity: 0.5; }
+.editor-card-warning { border-left-color: var(--color-red); }
+.editor-card-info { border-left-color: var(--color-blue); }
+.editor-stale-badge {
+  font-size: 10px;
+  background: var(--background-modifier-error);
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+.editor-card-buttons {
+  display: flex;
+  gap: 4px;
+  margin-top: 8px;
+}
+.editor-card-buttons button {
+  font-size: 11px;
+  padding: 2px 8px;
+}
+.editor-banner {
+  background: var(--background-modifier-error-hover);
+  padding: 6px 10px;
+  border-radius: 4px;
+  margin-bottom: 8px;
+  font-size: 12px;
+}
