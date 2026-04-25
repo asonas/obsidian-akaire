@@ -74,7 +74,7 @@ export class ReviewSession {
     await this.opts.anchorStore.save(this.opts.notePath, persisted);
   }
 
-  async runReview(mode: 'full' | 'diff'): Promise<void> {
+  async runReview(mode: 'full' | 'diff', signal?: AbortSignal): Promise<void> {
     const { systemPrompt } = await this.opts.promptResolver.resolvePrompt(
       this.opts.notePath
     );
@@ -90,6 +90,7 @@ export class ReviewSession {
       textlintFindings: findings,
       sessionId: this.sessionId,
       vaultDir: this.opts.vaultDir,
+      signal,
     });
 
     this.sessionId = result.newSessionId;
@@ -115,7 +116,7 @@ export class ReviewSession {
     this.refreshHighlights();
   }
 
-  async sendChatMessage(message: string): Promise<string> {
+  async sendChatMessage(message: string, signal?: AbortSignal): Promise<string> {
     if (!this.sessionId) {
       throw new Error('no session yet — run review first');
     }
@@ -123,6 +124,7 @@ export class ReviewSession {
       message,
       sessionId: this.sessionId,
       vaultDir: this.opts.vaultDir,
+      signal,
     });
     return result.reply;
   }

@@ -19,6 +19,7 @@ export interface ReviewArgs {
   textlintFindings?: unknown[];
   sessionId: string | null;
   vaultDir: string;
+  signal?: AbortSignal;
 }
 
 export interface ReviewResult {
@@ -30,6 +31,7 @@ export interface ChatArgs {
   message: string;
   sessionId: string;
   vaultDir: string;
+  signal?: AbortSignal;
 }
 
 export class ClaudeRunError extends Error {
@@ -44,7 +46,7 @@ export class ClaudeRunner {
   async review(args: ReviewArgs): Promise<ReviewResult> {
     const userPrompt = this.buildReviewPrompt(args);
     const argv = this.buildArgs(args, true);
-    const { stdout, sessionId } = await this.run(argv, userPrompt, args.vaultDir);
+    const { stdout, sessionId } = await this.run(argv, userPrompt, args.vaultDir, args.signal);
 
     const outerMaybe = this.parseClaudeJson(stdout);
     const inner = JSON.parse(outerMaybe.result);
@@ -60,7 +62,7 @@ export class ClaudeRunner {
 
   async chat(args: ChatArgs): Promise<{ reply: string }> {
     const argv = this.buildChatArgs(args);
-    const { stdout } = await this.run(argv, args.message, args.vaultDir);
+    const { stdout } = await this.run(argv, args.message, args.vaultDir, args.signal);
     const parsed = this.parseClaudeJson(stdout);
     return { reply: parsed.result };
   }
@@ -121,7 +123,8 @@ export class ClaudeRunner {
   private async run(
     argv: string[],
     stdin: string,
-    cwd: string
+    cwd: string,
+    signal?: AbortSignal,
   ): Promise<{ stdout: string; stderr: string; sessionId: string }> {
     return new Promise((resolve, reject) => {
       const child = this.opts.spawn(this.opts.claudeBinary, argv, { cwd });
@@ -132,14 +135,25 @@ export class ClaudeRunner {
         reject(new ClaudeRunError('timeout', stderr));
       }, this.opts.timeoutMs);
 
+      let abortHandler: (() => void) | null = null;
+      if (signal) {
+        abortHandler = () => {
+          child.kill('SIGKILL');
+          reject(new ClaudeRunError('aborted', stderr));
+        };
+        signal.addEventListener('abort', abortHandler);
+      }
+
       child.stdout?.on('data', (d) => { stdout += d.toString(); });
       child.stderr?.on('data', (d) => { stderr += d.toString(); });
       child.on('error', (e) => {
         clearTimeout(timer);
+        if (abortHandler) signal?.removeEventListener('abort', abortHandler);
         reject(new ClaudeRunError(`spawn failed: ${e.message}`, stderr));
       });
       child.on('close', (code) => {
         clearTimeout(timer);
+        if (abortHandler) signal?.removeEventListener('abort', abortHandler);
         if (code !== 0) {
           reject(new ClaudeRunError(`exit ${code}`, stderr));
           return;
