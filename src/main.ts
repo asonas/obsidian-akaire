@@ -8,6 +8,7 @@ import { TextlintRunner } from './core/TextlintRunner';
 import { AnchorStore } from './core/AnchorStore';
 import { PromptResolver } from './core/PromptResolver';
 import { makeFsApi, makeAnchorFsApi } from './util/obsidianFs';
+import { resolveBinary } from './util/resolveBinary';
 import { anchorField, setAnchorMarks, clearAnchorMarks } from './editor/decoration';
 
 export default class EditorPlugin extends Plugin {
@@ -23,12 +24,12 @@ export default class EditorPlugin extends Plugin {
     const vaultRoot = (this.app.vault.adapter as any).basePath as string;
 
     this.runner = new ClaudeRunner({
-      claudeBinary: 'claude',
+      claudeBinary: resolveBinary('claude'),
       spawn,
       timeoutMs: 30_000,
     });
     this.textlint = new TextlintRunner({
-      binary: 'textlint',
+      binary: resolveBinary('textlint'),
       spawn,
     });
     this.anchorStore = new AnchorStore({
