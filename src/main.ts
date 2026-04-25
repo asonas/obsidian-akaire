@@ -17,6 +17,7 @@ export default class EditorPlugin extends Plugin {
   private anchorStore!: AnchorStore;
   private promptResolver!: PromptResolver;
   private currentAbort: AbortController | null = null;
+  private leafGen = 0;
 
   async onload() {
     const vaultRoot = (this.app.vault.adapter as any).basePath as string;
@@ -72,33 +73,39 @@ export default class EditorPlugin extends Plugin {
 
   private async onLeafChange(leaf: WorkspaceLeaf | null): Promise<void> {
     this.currentAbort?.abort();
+    const myGen = ++this.leafGen;
+
     const sidebars = this.app.workspace.getLeavesOfType(VIEW_TYPE_EDITOR);
     const sidebarView = sidebars[0]?.view as SidebarView | undefined;
 
     if (this.session) {
       await this.session.persist();
+      if (myGen !== this.leafGen) return;
       this.session = null;
       sidebarView?.unbind?.();
     }
     if (!leaf) return;
     const view = leaf.view;
     if (!(view instanceof MarkdownView) || !view.file) return;
-    this.session = await this.makeSession(view);
+
+    const newSession = await this.makeSession(view);
+    if (myGen !== this.leafGen) return;
 
     // frontmatter から sessionId を読む
     const cache = this.app.metadataCache.getFileCache(view.file);
     const fmSessionId = cache?.frontmatter?.editor_session;
-    if (typeof fmSessionId === 'string') {
-      this.session.sessionId = fmSessionId;
-    }
+    if (typeof fmSessionId === 'string') newSession.sessionId = fmSessionId;
 
-    await this.session.rehydrate();
+    await newSession.rehydrate();
+    if (myGen !== this.leafGen) return;
+    this.session = newSession;
 
     const cm = (view.editor as any).cm as EditorView;
     sidebarView?.bind?.(this.session, cm);
 
     // textlintの可用性を確認しバナー表示
     const probe = await this.textlint.lint(view.file.path);
+    if (myGen !== this.leafGen) return;
     if (!probe.available) {
       sidebarView?.setBanner(`textlint が見つかりません — ${probe.reason}`);
     } else {
@@ -144,6 +151,10 @@ export default class EditorPlugin extends Plugin {
     if (!this.session) return;
     this.currentAbort?.abort();
     this.currentAbort = new AbortController();
+
+    const startView = this.app.workspace.getActiveViewOfType(MarkdownView);
+    const targetFile = startView?.file;
+
     try {
       await this.session.runReview(mode, this.currentAbort.signal);
     } catch (e) {
@@ -151,11 +162,11 @@ export default class EditorPlugin extends Plugin {
       console.error('[editor-plugin] review failed', e);
       return;
     }
-    // sessionId を frontmatter に書き戻す
-    if (this.session.sessionId) {
-      const view = this.app.workspace.getActiveViewOfType(MarkdownView);
-      if (view?.file) {
-        await this.app.fileManager.processFrontMatter(view.file, (fm) => {
+    // 開始時のファイルがまだ同じなら frontmatter に書き戻す
+    if (this.session.sessionId && targetFile) {
+      const currentView = this.app.workspace.getActiveViewOfType(MarkdownView);
+      if (currentView?.file?.path === targetFile.path) {
+        await this.app.fileManager.processFrontMatter(targetFile, (fm) => {
           if (fm.editor_session !== this.session!.sessionId) {
             fm.editor_session = this.session!.sessionId;
           }

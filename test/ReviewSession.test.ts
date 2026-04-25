@@ -160,3 +160,70 @@ describe('ReviewSession.rehydrate', () => {
     expect(editor.setHighlights).toHaveBeenCalled();
   });
 });
+
+describe('ReviewSession.runReview abort', () => {
+  it('returns early if signal is aborted before runner.review', async () => {
+    const editor = makeEditorBridge('text');
+    const fakeRunner = { review: vi.fn(), chat: vi.fn() };
+    const fakeTextlint = { lint: vi.fn(async () => ({ available: true, messages: [] })) };
+    const fakeResolver = { resolvePrompt: vi.fn(async () => ({ systemPrompt: '', sources: [] })) };
+
+    const session = new ReviewSession({
+      notePath: 'n.md', editor,
+      anchorStore: { load: async () => [], save: async () => {} },
+      runner: fakeRunner, textlint: fakeTextlint, promptResolver: fakeResolver,
+      vaultDir: '/v',
+    });
+
+    const ac = new AbortController();
+    ac.abort();
+    await session.runReview('full', ac.signal);
+
+    expect(fakeRunner.review).not.toHaveBeenCalled();
+  });
+});
+
+describe('ReviewSession.rehydrate stale', () => {
+  it('marks anchors as stale when quote not found in current text', async () => {
+    const editor = makeEditorBridge('まったく違う文章');
+    const stored: PersistedAnchor[] = [{
+      id: 'c1', quote: '冗長な表現', contextBefore: 'これは',
+      contextAfter: 'です', lineHint: 0, comment: sampleComment, resolved: false,
+    }];
+
+    const session = new ReviewSession({
+      notePath: 'note.md', editor,
+      anchorStore: { load: async () => stored, save: async () => {} },
+      runner: null as any, textlint: null as any, promptResolver: null as any,
+      vaultDir: '/vault',
+    });
+
+    await session.rehydrate();
+
+    expect(session.comments).toHaveLength(1);
+    // refreshHighlights は stale=true のエントリを除外するので空のマークを渡す
+    expect(editor.setHighlights).toHaveBeenCalledWith([]);
+  });
+});
+
+describe('ReviewSession.applyComment stale guard', () => {
+  it('does not apply when anchor is stale', async () => {
+    const editor = makeEditorBridge('まったく違う文章');
+    const stored: PersistedAnchor[] = [{
+      id: 'c1', quote: '冗長な表現', contextBefore: 'これは',
+      contextAfter: 'です', lineHint: 0,
+      comment: { ...sampleComment, suggestion: '冗長' }, resolved: false,
+    }];
+    const session = new ReviewSession({
+      notePath: 'n.md', editor,
+      anchorStore: { load: async () => stored, save: async () => {} },
+      runner: null as any, textlint: null as any, promptResolver: null as any,
+      vaultDir: '/v',
+    });
+    await session.rehydrate();
+
+    session.applyComment('c1');
+
+    expect(editor.text).toBe('まったく違う文章'); // 変更なし
+  });
+});

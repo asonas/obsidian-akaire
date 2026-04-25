@@ -3,7 +3,6 @@ import { EditorView } from '@codemirror/view';
 import { renderCommentCard, CommentCardCallbacks } from './CommentCard';
 import type { ReviewComment } from '../types';
 import type { ReviewSession } from '../core/ReviewSession';
-import { setAnchorMarks } from '../editor/decoration';
 
 export const VIEW_TYPE_EDITOR = 'editor-plugin-sidebar';
 
@@ -62,7 +61,6 @@ export class SidebarView extends ItemView {
       onDismiss: (id) => { this.currentSession!.dismissComment(id); this.refresh(); },
       onJump: (id) => this.jumpTo(id),
     });
-    this.pushHighlights();
   }
 
   renderCards(comments: Array<{ comment: ReviewComment; stale: boolean }>, cb: CommentCardCallbacks): void {
@@ -80,17 +78,6 @@ export class SidebarView extends ItemView {
     if (!text) { banner.empty(); banner.style.display = 'none'; return; }
     banner.style.display = 'block';
     banner.setText(text);
-  }
-
-  private pushHighlights(): void {
-    if (!this.currentEditorView || !this.currentSession) return;
-    const anchors = (this.currentSession as any).anchors as Map<string, any>;
-    const arr: Array<{ from: number; to: number; commentId: string; source: 'ai' }> = [];
-    for (const [, a] of anchors) {
-      if (a.stale || a.resolved) continue;
-      arr.push({ from: a.from, to: a.to, commentId: a.comment.id, source: 'ai' });
-    }
-    this.currentEditorView.dispatch({ effects: setAnchorMarks.of(arr) });
   }
 
   private jumpTo(commentId: string): void {

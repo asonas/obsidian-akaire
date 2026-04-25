@@ -1,6 +1,9 @@
 import type { ReviewComment, PersistedAnchor } from '../types';
 import { findAnchor } from '../editor/anchorMatcher';
 import { splitParagraphs, paragraphHash, diffParagraphs } from '../util/paragraphHash';
+import type { ClaudeRunner } from './ClaudeRunner';
+import type { TextlintRunner } from './TextlintRunner';
+import type { PromptResolver } from './PromptResolver';
 
 export interface EditorBridge {
   getText(): string;
@@ -18,9 +21,9 @@ export interface ReviewSessionOpts {
   notePath: string;
   editor: EditorBridge;
   anchorStore: AnchorStoreApi;
-  runner: any;
-  textlint: any;
-  promptResolver: any;
+  runner: Pick<ClaudeRunner, 'review' | 'chat'>;
+  textlint: Pick<TextlintRunner, 'lint'>;
+  promptResolver: Pick<PromptResolver, 'resolvePrompt'>;
   vaultDir: string;
 }
 
@@ -75,10 +78,13 @@ export class ReviewSession {
   }
 
   async runReview(mode: 'full' | 'diff', signal?: AbortSignal): Promise<void> {
+    if (signal?.aborted) return;
     const { systemPrompt } = await this.opts.promptResolver.resolvePrompt(
       this.opts.notePath
     );
+    if (signal?.aborted) return;
     const textlintResult = await this.opts.textlint.lint(this.opts.notePath);
+    if (signal?.aborted) return;
     const findings = textlintResult.available ? textlintResult.messages : [];
 
     const text = this.opts.editor.getText();
@@ -92,6 +98,7 @@ export class ReviewSession {
       vaultDir: this.opts.vaultDir,
       signal,
     });
+    if (signal?.aborted) return;
 
     this.sessionId = result.newSessionId;
     for (const c of result.comments) {
@@ -104,6 +111,7 @@ export class ReviewSession {
   applyComment(commentId: string): void {
     const a = this.anchors.get(commentId);
     if (!a || !a.comment.suggestion) return;
+    if (a.stale) return;
     this.opts.editor.replaceRange(a.comment.suggestion, a.from, a.to);
     a.resolved = true;
     this.refreshHighlights();

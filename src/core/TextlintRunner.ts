@@ -12,7 +12,7 @@ export class TextlintRunner {
 
   async lint(filePath: string): Promise<TextlintResult> {
     return new Promise((resolve) => {
-      const child = this.opts.spawn(this.opts.binary, ['-f', 'json', filePath]);
+      const child = this.opts.spawn(this.opts.binary, ['--no-install', '-f', 'json', filePath]);
       let stdout = '';
       let stderr = '';
       child.stdout?.on('data', (d) => { stdout += d.toString(); });
