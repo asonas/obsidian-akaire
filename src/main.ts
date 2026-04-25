@@ -28,7 +28,7 @@ export default class EditorPlugin extends Plugin {
       timeoutMs: 30_000,
     });
     this.textlint = new TextlintRunner({
-      binary: 'npx',
+      binary: 'textlint',
       spawn,
     });
     this.anchorStore = new AnchorStore({

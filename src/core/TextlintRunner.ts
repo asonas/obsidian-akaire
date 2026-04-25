@@ -8,11 +8,12 @@ export type SpawnFn = (
 ) => ChildProcess;
 
 export class TextlintRunner {
-  constructor(private opts: { binary: string; spawn: SpawnFn }) {}
+  constructor(private opts: { binary: string; preArgs?: string[]; spawn: SpawnFn }) {}
 
   async lint(filePath: string): Promise<TextlintResult> {
+    const args = [...(this.opts.preArgs ?? []), '-f', 'json', filePath];
     return new Promise((resolve) => {
-      const child = this.opts.spawn(this.opts.binary, ['--no-install', '-f', 'json', filePath]);
+      const child = this.opts.spawn(this.opts.binary, args);
       let stdout = '';
       let stderr = '';
       child.stdout?.on('data', (d) => { stdout += d.toString(); });
