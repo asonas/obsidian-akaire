@@ -43,4 +43,17 @@ describe('AnchorStore', () => {
 
     expect(loaded).toEqual([sample]);
   });
+
+  it('returns empty array when file does not exist', async () => {
+    const { fs } = makeFs();
+    const store = new AnchorStore({ vaultRoot: '/vault', fs });
+    expect(await store.load('missing.md')).toEqual([]);
+  });
+
+  it('returns empty array on malformed JSON', async () => {
+    const { fs, files } = makeFs();
+    files.set('/vault/.editor-state/broken.md.json', 'not json {');
+    const store = new AnchorStore({ vaultRoot: '/vault', fs });
+    expect(await store.load('broken.md')).toEqual([]);
+  });
 });
