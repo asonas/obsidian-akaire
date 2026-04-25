@@ -24,6 +24,35 @@ const sampleComment: ReviewComment = {
   message: '簡潔に',
 };
 
+describe('ReviewSession.runReview diff', () => {
+  it('only sends changed paragraphs', async () => {
+    const editor = makeEditorBridge('para A\n\npara B\n\npara C');
+    const captured: string[] = [];
+    const fakeRunner = {
+      review: vi.fn(async (args: any) => {
+        captured.push(args.text);
+        return { comments: [], newSessionId: 's' };
+      }),
+      chat: vi.fn(),
+    };
+    const fakeTextlint = { lint: async () => ({ available: true, messages: [] }) };
+    const fakeResolver = { resolvePrompt: async () => ({ systemPrompt: '', sources: [] }) };
+
+    const session = new ReviewSession({
+      notePath: 'n.md', editor,
+      anchorStore: { load: async () => [], save: async () => {} },
+      runner: fakeRunner, textlint: fakeTextlint, promptResolver: fakeResolver,
+      vaultDir: '/v',
+    });
+
+    await session.runReview('full');     // 全段落をベースラインに登録
+    editor.text = 'para A\n\npara B changed\n\npara C';
+    await session.runReview('diff');     // 2段落目だけが対象
+
+    expect(captured[1]).toBe('para B changed');
+  });
+});
+
 describe('ReviewSession.runReview full', () => {
   it('calls runner.review and stores returned comments', async () => {
     const editor = makeEditorBridge('これは冗長な表現です。');
