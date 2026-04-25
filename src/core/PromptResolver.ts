@@ -17,17 +17,45 @@ export class PromptResolver {
   ) {}
 
   async resolvePrompt(filePath: string): Promise<ResolvePromptResult> {
-    const content = await this.opts.fs.readFile(filePath);
-    if (!content) return { systemPrompt: '', sources: [] };
+    const dirChain = this.collectAncestorDirs(filePath);
+    const fragments: string[] = [];
+    const sources: string[] = [];
 
-    const fm = this.extractFrontmatter(content);
-    const editorPrompt = fm?.editor_prompt as string | undefined;
-    if (!editorPrompt) return { systemPrompt: '', sources: [] };
+    for (const dir of dirChain) {
+      const editorMdPath = this.opts.fs.pathJoin(dir, '.editor.md');
+      const content = await this.opts.fs.readFile(editorMdPath);
+      if (content) {
+        fragments.push(`## from ${this.opts.fs.relative(this.opts.vaultRoot, editorMdPath)}\n\n${content.trim()}`);
+        sources.push(editorMdPath);
+      }
+    }
+
+    const noteContent = await this.opts.fs.readFile(filePath);
+    if (noteContent) {
+      const fm = this.extractFrontmatter(noteContent);
+      const editorPrompt = fm?.editor_prompt as string | undefined;
+      if (editorPrompt) {
+        fragments.push(`## from ${this.opts.fs.relative(this.opts.vaultRoot, filePath)}\n\n${editorPrompt.trim()}`);
+        sources.push(filePath);
+      }
+    }
 
     return {
-      systemPrompt: editorPrompt,
-      sources: [filePath],
+      systemPrompt: fragments.join('\n\n'),
+      sources,
     };
+  }
+
+  private collectAncestorDirs(filePath: string): string[] {
+    const rel = this.opts.fs.relative(this.opts.vaultRoot, filePath);
+    const segments = rel.split('/').slice(0, -1);
+    const dirs: string[] = [this.opts.vaultRoot];
+    let acc = this.opts.vaultRoot;
+    for (const seg of segments) {
+      acc = this.opts.fs.pathJoin(acc, seg);
+      dirs.push(acc);
+    }
+    return dirs;
   }
 
   private extractFrontmatter(content: string): Record<string, unknown> | null {

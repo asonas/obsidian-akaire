@@ -22,4 +22,30 @@ describe('PromptResolver', () => {
     expect(result.systemPrompt).toContain('be terse');
     expect(result.sources).toEqual(['/vault/note.md']);
   });
+
+  it('walks up directories collecting .editor.md, top-down concat', async () => {
+    const fs = makeFs({
+      '/vault/.editor.md': 'be polite',
+      '/vault/blog/.editor.md': 'use blog tone',
+      '/vault/blog/post.md':
+        '---\neditor_prompt: "no jargon"\n---\nbody',
+    });
+    const resolver = new PromptResolver({ vaultRoot: '/vault', fs });
+
+    const result = await resolver.resolvePrompt('/vault/blog/post.md');
+
+    expect(result.systemPrompt).toContain('be polite');
+    expect(result.systemPrompt).toContain('use blog tone');
+    expect(result.systemPrompt).toContain('no jargon');
+    const beforeBlog = result.systemPrompt.indexOf('be polite');
+    const blog = result.systemPrompt.indexOf('use blog tone');
+    const post = result.systemPrompt.indexOf('no jargon');
+    expect(beforeBlog).toBeLessThan(blog);
+    expect(blog).toBeLessThan(post);
+    expect(result.sources).toEqual([
+      '/vault/.editor.md',
+      '/vault/blog/.editor.md',
+      '/vault/blog/post.md',
+    ]);
+  });
 });
