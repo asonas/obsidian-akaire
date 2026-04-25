@@ -10,6 +10,8 @@
     "test:watch": "vitest"
   },
   "devDependencies": {
+    "@codemirror/state": "^6.6.0",
+    "@codemirror/view": "^6.41.1",
     "@types/node": "^20.0.0",
     "esbuild": "^0.24.0",
     "obsidian": "latest",
