@@ -36,3 +36,4 @@
   margin-bottom: 8px;
   font-size: 12px;
 }
+.editor-banner:empty { display: none; }

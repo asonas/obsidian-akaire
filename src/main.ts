@@ -48,6 +48,11 @@ export default class EditorPlugin extends Plugin {
       this.app.workspace.on('active-leaf-change', (leaf) => this.onLeafChange(leaf))
     );
 
+    // プラグイン再読み込み時、既にmarkdownノートが開いていれば initial probe
+    this.app.workspace.onLayoutReady(() => {
+      this.onLeafChange(this.app.workspace.activeLeaf);
+    });
+
     this.addCommand({
       id: 'review-changed',
       name: 'Akaire: Review changed paragraphs',
