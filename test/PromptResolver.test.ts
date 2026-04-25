@@ -48,4 +48,19 @@ describe('PromptResolver', () => {
       '/vault/blog/post.md',
     ]);
   });
+
+  it('skips ancestor .editor.md when editor_prompt_inherit is false', async () => {
+    const fs = makeFs({
+      '/vault/.editor.md': 'be polite',
+      '/vault/note.md':
+        '---\neditor_prompt: "no jargon"\neditor_prompt_inherit: false\n---\nbody',
+    });
+    const resolver = new PromptResolver({ vaultRoot: '/vault', fs });
+
+    const result = await resolver.resolvePrompt('/vault/note.md');
+
+    expect(result.systemPrompt).not.toContain('be polite');
+    expect(result.systemPrompt).toContain('no jargon');
+    expect(result.sources).toEqual(['/vault/note.md']);
+  });
 });

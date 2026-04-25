@@ -17,27 +17,29 @@ export class PromptResolver {
   ) {}
 
   async resolvePrompt(filePath: string): Promise<ResolvePromptResult> {
-    const dirChain = this.collectAncestorDirs(filePath);
+    const noteContent = await this.opts.fs.readFile(filePath);
+    const fm = noteContent ? this.extractFrontmatter(noteContent) : null;
+    const inherit = fm?.editor_prompt_inherit !== false;
+
     const fragments: string[] = [];
     const sources: string[] = [];
 
-    for (const dir of dirChain) {
-      const editorMdPath = this.opts.fs.pathJoin(dir, '.editor.md');
-      const content = await this.opts.fs.readFile(editorMdPath);
-      if (content) {
-        fragments.push(`## from ${this.opts.fs.relative(this.opts.vaultRoot, editorMdPath)}\n\n${content.trim()}`);
-        sources.push(editorMdPath);
+    if (inherit) {
+      const dirChain = this.collectAncestorDirs(filePath);
+      for (const dir of dirChain) {
+        const editorMdPath = this.opts.fs.pathJoin(dir, '.editor.md');
+        const content = await this.opts.fs.readFile(editorMdPath);
+        if (content) {
+          fragments.push(`## from ${this.opts.fs.relative(this.opts.vaultRoot, editorMdPath)}\n\n${content.trim()}`);
+          sources.push(editorMdPath);
+        }
       }
     }
 
-    const noteContent = await this.opts.fs.readFile(filePath);
-    if (noteContent) {
-      const fm = this.extractFrontmatter(noteContent);
-      const editorPrompt = fm?.editor_prompt as string | undefined;
-      if (editorPrompt) {
-        fragments.push(`## from ${this.opts.fs.relative(this.opts.vaultRoot, filePath)}\n\n${editorPrompt.trim()}`);
-        sources.push(filePath);
-      }
+    const editorPrompt = fm?.editor_prompt as string | undefined;
+    if (editorPrompt) {
+      fragments.push(`## from ${this.opts.fs.relative(this.opts.vaultRoot, filePath)}\n\n${editorPrompt.trim()}`);
+      sources.push(filePath);
     }
 
     return {
