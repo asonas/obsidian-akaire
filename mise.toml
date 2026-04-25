@@ -1,0 +1,73 @@
+# 上書きする場合は環境変数 AKAIRE_VAULT を指定する
+# 例: AKAIRE_VAULT=~/ObsidianDev mise run install
+
+[tasks.build]
+description = "Build production bundle (dist/main.js)"
+run = "npm run build"
+
+[tasks.dev]
+description = "esbuild watch mode for live development"
+run = "npm run dev"
+
+[tasks.test]
+description = "Run vitest unit tests"
+run = "npm test"
+
+[tasks.install]
+description = "Build and symlink plugin into the Obsidian vault (defaults to ~/Documents/asonas)"
+depends = ["build"]
+run = '''
+set -eu
+VAULT="${AKAIRE_VAULT:-$HOME/Documents/asonas}"
+PLUGIN_DIR="$VAULT/.obsidian/plugins/obsidian-akaire"
+SRC="$(pwd)"
+
+if [ ! -d "$VAULT/.obsidian" ]; then
+  echo "error: $VAULT does not look like an Obsidian vault (.obsidian/ not found)" >&2
+  exit 1
+fi
+
+mkdir -p "$PLUGIN_DIR"
+ln -sf "$SRC/dist/main.js"     "$PLUGIN_DIR/main.js"
+ln -sf "$SRC/manifest.json"    "$PLUGIN_DIR/manifest.json"
+ln -sf "$SRC/styles.css"       "$PLUGIN_DIR/styles.css"
+
+echo "Installed:"
+ls -l "$PLUGIN_DIR"
+'''
+
+[tasks.uninstall]
+description = "Remove plugin symlinks from the Obsidian vault"
+run = '''
+set -eu
+VAULT="${AKAIRE_VAULT:-$HOME/Documents/asonas}"
+PLUGIN_DIR="$VAULT/.obsidian/plugins/obsidian-akaire"
+
+if [ ! -d "$PLUGIN_DIR" ]; then
+  echo "Nothing to remove: $PLUGIN_DIR not found"
+  exit 0
+fi
+
+command rm -f "$PLUGIN_DIR/main.js" "$PLUGIN_DIR/manifest.json" "$PLUGIN_DIR/styles.css"
+rmdir "$PLUGIN_DIR" 2>/dev/null || true
+echo "Uninstalled from $PLUGIN_DIR"
+'''
+
+[tasks.reinstall]
+description = "Uninstall then install (useful after manifest changes)"
+depends = ["uninstall"]
+run = "mise run install"
+
+[tasks.hot-reload]
+description = "Enable Hot-Reload (creates .hotreload file). Requires the Hot-Reload community plugin."
+run = '''
+set -eu
+VAULT="${AKAIRE_VAULT:-$HOME/Documents/asonas}"
+PLUGIN_DIR="$VAULT/.obsidian/plugins/obsidian-akaire"
+if [ ! -d "$PLUGIN_DIR" ]; then
+  echo "error: run 'mise run install' first" >&2
+  exit 1
+fi
+touch "$PLUGIN_DIR/.hotreload"
+echo "Hot-Reload enabled at $PLUGIN_DIR/.hotreload"
+'''
