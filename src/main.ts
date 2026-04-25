@@ -168,6 +168,7 @@ export default class EditorPlugin extends Plugin {
   }
 
   private async runReview(mode: 'full' | 'diff'): Promise<void> {
+    log('info', 'runReview invoked', { mode, hasSession: !!this.session });
     if (!this.session) return;
     this.currentAbort?.abort();
     this.currentAbort = new AbortController();
@@ -177,9 +178,13 @@ export default class EditorPlugin extends Plugin {
 
     try {
       await this.session.runReview(mode, this.currentAbort.signal);
+      log('info', 'runReview completed', {
+        sessionId: this.session.sessionId,
+        commentCount: this.session.comments.length,
+      });
     } catch (e) {
       if ((e as Error).message === 'aborted') return;
-      console.error('[editor-plugin] review failed', e);
+      log('error', 'runReview failed', { error: (e as Error).message });
       return;
     }
     // 開始時のファイルがまだ同じなら frontmatter に書き戻す

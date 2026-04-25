@@ -1,5 +1,6 @@
 import type { ChildProcess } from 'node:child_process';
 import type { ReviewComment } from '../types';
+import { log } from '../util/logger';
 
 export type SpawnFn = (
   cmd: string,
@@ -126,6 +127,12 @@ export class ClaudeRunner {
     cwd: string,
     signal?: AbortSignal,
   ): Promise<{ stdout: string; stderr: string; sessionId: string }> {
+    log('info', 'ClaudeRunner.run spawn', {
+      binary: this.opts.claudeBinary,
+      argv,
+      cwd,
+      stdinLen: stdin.length,
+    });
     return new Promise((resolve, reject) => {
       const child = this.opts.spawn(this.opts.claudeBinary, argv, { cwd });
       let stdout = '';
@@ -149,19 +156,33 @@ export class ClaudeRunner {
       child.on('error', (e) => {
         clearTimeout(timer);
         if (abortHandler) signal?.removeEventListener('abort', abortHandler);
+        log('error', 'ClaudeRunner spawn error', { error: e.message });
         reject(new ClaudeRunError(`spawn failed: ${e.message}`, stderr));
       });
       child.on('close', (code) => {
         clearTimeout(timer);
         if (abortHandler) signal?.removeEventListener('abort', abortHandler);
+        log('info', 'ClaudeRunner closed', {
+          code,
+          stdoutLen: stdout.length,
+          stderr: stderr.slice(0, 500),
+        });
         if (code !== 0) {
           reject(new ClaudeRunError(`exit ${code}`, stderr));
           return;
         }
         try {
           const parsed = this.parseClaudeJson(stdout);
+          log('info', 'ClaudeRunner parsed', {
+            sessionId: parsed.session_id,
+            resultPreview: parsed.result.slice(0, 200),
+          });
           resolve({ stdout, stderr, sessionId: parsed.session_id });
         } catch (e) {
+          log('error', 'ClaudeRunner parse failed', {
+            error: (e as Error).message,
+            stdoutPreview: stdout.slice(0, 500),
+          });
           reject(e);
         }
       });
