@@ -51,6 +51,12 @@ If you drop a `.editor.md` file inside a directory, its contents are appended to
 
 Comment anchors are stored under `.editor-state/` next to your vault. Add it to your vault's `.gitignore` if you sync the vault with git.
 
+## Network use
+
+Akaire itself does not make any network requests. The plugin spawns the `claude` CLI as a subprocess, and Claude Code in turn talks to Anthropic's servers (`api.anthropic.com`) to produce the review. The text of the note you are reviewing is sent to Anthropic as part of that request. The optional `textlint` integration runs entirely locally and does not use the network.
+
+Authentication is handled by Claude Code, not by Akaire. You log in once with `claude` (or configure an Anthropic API key) and Akaire piggy-backs on that session. Akaire never reads, stores, or transmits your credentials, and it does not include any telemetry or auto-update mechanism.
+
 ## Development
 
 ```bash
