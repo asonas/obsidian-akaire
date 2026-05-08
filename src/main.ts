@@ -121,6 +121,12 @@ export default class EditorPlugin extends Plugin {
     if (this.session && this.session.notePath === targetFile.path) {
       const cm = (view.editor as any).cm as EditorView;
       sidebarView?.setEditorView?.(cm);
+      // サイドバーがまだセッションにバインドされていなければここで結ぶ。
+      // （プラグイン起動後にサイドバーを開いた場合や、同じファイルを開いたまま
+      //  サイドバーを後から開いた場合、bind() が一度も呼ばれずに残るため。）
+      if (sidebarView && !sidebarView.hasSession()) {
+        sidebarView.bind(this.session, cm);
+      }
       return;
     }
 
@@ -254,5 +260,15 @@ export default class EditorPlugin extends Plugin {
       await leaf?.setViewState({ type: VIEW_TYPE_EDITOR, active: true });
     }
     if (leaf) workspace.revealLeaf(leaf);
+
+    // 既存のセッションがあるのにサイドバーが未バインドなら結ぶ。
+    // Obsidian起動時はサイドバーが閉じた状態で onLeafChange が走るため、
+    // 後からサイドバーを開いても active-leaf-change が発火するまでバインドされない。
+    const sidebarView = leaf?.view as SidebarView | undefined;
+    const mdView = workspace.getActiveViewOfType(MarkdownView);
+    if (sidebarView && this.session && mdView?.file?.path === this.session.notePath) {
+      const cm = (mdView.editor as any).cm as EditorView;
+      sidebarView.bind(this.session, cm);
+    }
   }
 }

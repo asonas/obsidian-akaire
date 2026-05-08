@@ -175,6 +175,10 @@ export class SidebarView extends ItemView {
     this.currentEditorView = editorView;
   }
 
+  hasSession(): boolean {
+    return this.currentSession !== null;
+  }
+
   unbind(): void {
     this.currentSession = null;
     this.currentEditorView = null;
