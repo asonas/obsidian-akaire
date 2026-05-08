@@ -9,7 +9,7 @@ import { AnchorStore } from './core/AnchorStore';
 import { PromptResolver } from './core/PromptResolver';
 import { makeFsApi, makeAnchorFsApi } from './util/obsidianFs';
 import { resolveBinary } from './util/resolveBinary';
-import { log, logPath } from './util/logger';
+import { log } from './util/logger';
 import { anchorField, setAnchorMarks, clearAnchorMarks } from './editor/decoration';
 
 export default class EditorPlugin extends Plugin {
@@ -25,7 +25,6 @@ export default class EditorPlugin extends Plugin {
     const vaultRoot = (this.app.vault.adapter as any).basePath as string;
     log('info', 'plugin onload start', {
       vaultRoot,
-      logPath: logPath(),
       processPath: process.env.PATH,
       processCwd: process.cwd(),
     });
