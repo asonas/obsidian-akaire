@@ -107,7 +107,6 @@ export default class EditorPlugin extends Plugin {
   async onunload() {
     this.currentAbort?.abort();
     if (this.session) await this.session.persist();
-    this.app.workspace.detachLeavesOfType(VIEW_TYPE_EDITOR);
   }
 
   private getVaultRoot(): string {
