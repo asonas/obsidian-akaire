@@ -137,7 +137,7 @@ export class ClaudeRunner {
     const outerMaybe = this.parseClaudeJson(stdout);
     let inner: { comments?: unknown };
     if (outerMaybe.structured_output && typeof outerMaybe.structured_output === 'object') {
-      inner = outerMaybe.structured_output as { comments?: unknown };
+      inner = outerMaybe.structured_output;
     } else {
       try {
         inner = extractJsonObject(outerMaybe.result) as { comments?: unknown };
@@ -291,12 +291,13 @@ export class ClaudeRunner {
           });
           resolve({ stdout, stderr, sessionId: parsed.session_id });
         } catch (e) {
+          const err = e instanceof Error ? e : new Error(String(e));
           log('error', 'ClaudeRunner parse failed', {
-            error: (e as Error).message,
+            error: err.message,
             totalMs,
             stdoutPreview: stdout.slice(0, 500),
           });
-          reject(e);
+          reject(err);
         }
       });
 

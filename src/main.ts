@@ -3,6 +3,7 @@ import {
   MarkdownView,
   TFile,
   WorkspaceLeaf,
+  Editor,
   FileSystemAdapter,
   normalizePath,
 } from 'obsidian';
@@ -19,6 +20,15 @@ import { resolveBinary } from './util/resolveBinary';
 import { log } from './util/logger';
 import { anchorField, jumpFlashField, setAnchorMarks, clearAnchorMarks } from './editor/decoration';
 
+// Obsidian の Editor は内部に CodeMirror 6 の EditorView を持つ。
+// 公式型では未公開なので、最小限のローカル型で読み出す。
+interface EditorWithCm extends Editor {
+  cm: EditorView;
+}
+function getCmView(editor: Editor): EditorView {
+  return (editor as EditorWithCm).cm;
+}
+
 export default class EditorPlugin extends Plugin {
   private session: ReviewSession | null = null;
   private runner!: ClaudeRunner;
@@ -28,7 +38,7 @@ export default class EditorPlugin extends Plugin {
   private currentAbort: AbortController | null = null;
   private leafGen = 0;
 
-  async onload() {
+  onload(): void {
     const vaultRoot = this.getVaultRoot();
     log('info', 'plugin onload start', {
       vaultRoot,
@@ -70,44 +80,58 @@ export default class EditorPlugin extends Plugin {
     this.registerView(VIEW_TYPE_EDITOR, (leaf) => {
       const v = new SidebarView(leaf);
       v.setActions({
-        onReviewFull: () => this.runReview('full'),
-        onReviewDiff: () => this.runReview('diff'),
+        onReviewFull: () => {
+          void this.runReview('full');
+        },
+        onReviewDiff: () => {
+          void this.runReview('diff');
+        },
       });
       return v;
     });
     this.registerEditorExtension([anchorField, jumpFlashField]);
 
     this.registerEvent(
-      this.app.workspace.on('active-leaf-change', (leaf) => this.onLeafChange(leaf))
+      this.app.workspace.on('active-leaf-change', (leaf) => {
+        void this.onLeafChange(leaf);
+      })
     );
 
     // プラグイン再読み込み時、既にmarkdownノートが開いていれば initial probe
     this.app.workspace.onLayoutReady(() => {
       const view = this.app.workspace.getActiveViewOfType(MarkdownView);
-      this.onLeafChange(view?.leaf ?? null);
+      void this.onLeafChange(view?.leaf ?? null);
     });
 
     this.addCommand({
       id: 'review-changed',
-      name: 'Akaire: Review changed paragraphs',
-      editorCallback: () => this.runReview('diff'),
+      name: 'Review changed paragraphs',
+      editorCallback: () => {
+        void this.runReview('diff');
+      },
     });
     this.addCommand({
       id: 'review-full',
-      name: 'Akaire: Review whole note',
-      editorCallback: () => this.runReview('full'),
+      name: 'Review whole note',
+      editorCallback: () => {
+        void this.runReview('full');
+      },
     });
     this.addCommand({
       id: 'open-sidebar',
-      name: 'Akaire: Open sidebar',
-      callback: () => this.activateView(),
+      name: 'Open sidebar',
+      callback: () => {
+        void this.activateView();
+      },
     });
-    this.addRibbonIcon('edit-3', 'Open Akaire', () => this.activateView());
+    this.addRibbonIcon('edit-3', 'Akaire', () => {
+      void this.activateView();
+    });
   }
 
-  async onunload() {
+  onunload(): void {
     this.currentAbort?.abort();
-    if (this.session) await this.session.persist();
+    if (this.session) void this.session.persist();
   }
 
   private getVaultRoot(): string {
@@ -134,7 +158,7 @@ export default class EditorPlugin extends Plugin {
 
     // 同じファイルなら EditorView 参照だけ更新して終了（再描画しない）
     if (this.session && this.session.notePath === targetFile.path) {
-      const cm = (view.editor as any).cm as EditorView;
+      const cm = getCmView(view.editor);
       sidebarView?.setEditorView?.(cm);
       // サイドバーがまだセッションにバインドされていなければここで結ぶ。
       // （プラグイン起動後にサイドバーを開いた場合や、同じファイルを開いたまま
@@ -156,24 +180,25 @@ export default class EditorPlugin extends Plugin {
       sidebarView?.unbind?.();
     }
 
-    const newSession = await this.makeSession(view);
+    const newSession = this.makeSession(view);
     if (myGen !== this.leafGen) return;
 
     // frontmatter から sessionId を読む
-    const cache = this.app.metadataCache.getFileCache(view.file);
-    const fmSessionId = cache?.frontmatter?.editor_session;
+    const cache = this.app.metadataCache.getFileCache(targetFile);
+    const frontmatter: Record<string, unknown> = cache?.frontmatter ?? {};
+    const fmSessionId = frontmatter.editor_session;
     if (typeof fmSessionId === 'string') newSession.sessionId = fmSessionId;
 
     await newSession.rehydrate();
     if (myGen !== this.leafGen) return;
     this.session = newSession;
 
-    const cm = (view.editor as any).cm as EditorView;
+    const cm = getCmView(view.editor);
     sidebarView?.bind?.(this.session, cm);
 
     // textlintの可用性を確認しバナー表示
-    const absoluteFilePath = normalizePath(`${this.getVaultRoot()}/${view.file.path}`);
-    log('info', 'onLeafChange probing textlint', { filePath: view.file.path, absoluteFilePath });
+    const absoluteFilePath = normalizePath(`${this.getVaultRoot()}/${targetFile.path}`);
+    log('info', 'onLeafChange probing textlint', { filePath: targetFile.path, absoluteFilePath });
     const probe = await this.textlint.lint(absoluteFilePath);
     if (myGen !== this.leafGen) return;
     log('info', 'textlint probe result', probe);
@@ -184,10 +209,13 @@ export default class EditorPlugin extends Plugin {
     }
   }
 
-  private async makeSession(view: MarkdownView): Promise<ReviewSession> {
-    const file = view.file as TFile;
+  private makeSession(view: MarkdownView): ReviewSession {
+    const file = view.file;
+    if (!(file instanceof TFile)) {
+      throw new Error('Akaire: active markdown view has no associated file.');
+    }
     const editor = view.editor;
-    const cm = (view.editor as any).cm as EditorView;
+    const cm = getCmView(view.editor);
     const bridge = {
       getText: () => editor.getValue(),
       replaceRange: (text: string, from: number, to: number) => {
@@ -253,11 +281,14 @@ export default class EditorPlugin extends Plugin {
     if (this.session.sessionId && targetFile) {
       const currentView = this.app.workspace.getActiveViewOfType(MarkdownView);
       if (currentView?.file?.path === targetFile.path) {
-        await this.app.fileManager.processFrontMatter(targetFile, (fm) => {
-          if (fm.editor_session !== this.session!.sessionId) {
-            fm.editor_session = this.session!.sessionId;
+        await this.app.fileManager.processFrontMatter(
+          targetFile,
+          (fm: Record<string, unknown>) => {
+            if (fm.editor_session !== this.session!.sessionId) {
+              fm.editor_session = this.session!.sessionId;
+            }
           }
-        });
+        );
       }
     }
     // サイドバーをリフレッシュ
@@ -282,7 +313,7 @@ export default class EditorPlugin extends Plugin {
     const sidebarView = leaf?.view as SidebarView | undefined;
     const mdView = workspace.getActiveViewOfType(MarkdownView);
     if (sidebarView && this.session && mdView?.file?.path === this.session.notePath) {
-      const cm = (mdView.editor as any).cm as EditorView;
+      const cm = getCmView(mdView.editor);
       sidebarView.bind(this.session, cm);
     }
   }
