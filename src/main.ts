@@ -305,7 +305,7 @@ export default class EditorPlugin extends Plugin {
       leaf = workspace.getRightLeaf(false);
       await leaf?.setViewState({ type: VIEW_TYPE_EDITOR, active: true });
     }
-    if (leaf) workspace.revealLeaf(leaf);
+    if (leaf) void workspace.revealLeaf(leaf);
 
     // 既存のセッションがあるのにサイドバーが未バインドなら結ぶ。
     // Obsidian起動時はサイドバーが閉じた状態で onLeafChange が走るため、
