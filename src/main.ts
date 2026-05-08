@@ -39,10 +39,18 @@ export default class EditorPlugin extends Plugin {
       timeoutMs: 180_000, // claude -p は10〜60秒かかることがあるので余裕を持つ
       model: 'sonnet',
     });
+    // プラグイン同梱の .textlintrc.json をフォールバックとして渡す。
+    // ノート祖先に .textlintrc が見つかればそちらを優先するので、
+    // ユーザ独自の設定は壊れない。
+    const defaultTextlintConfig = this.manifest.dir
+      ? `${vaultRoot}/${this.manifest.dir}/.textlintrc.json`
+      : undefined;
     this.textlint = new TextlintRunner({
       binary: textlintBin,
       spawn,
+      defaultConfigPath: defaultTextlintConfig,
     });
+    log('info', 'textlint default config', { defaultTextlintConfig });
     this.anchorStore = new AnchorStore({
       vaultRoot,
       fs: makeAnchorFsApi(this.app),

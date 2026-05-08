@@ -19,14 +19,14 @@ Claude only, via the Claude Code CLI. The actual model is whatever Claude Code i
 
 - Obsidian 1.5 or newer. Desktop only, because the plugin shells out to a CLI.
 - [Claude Code](https://docs.claude.com/en/docs/claude-code/overview) installed and reachable as `claude` on your PATH.
-- Optional: [textlint](https://textlint.github.io/) if you want grammar and style checks in the same sidebar.
+- Optional: [textlint](https://textlint.github.io/) if you want grammar and style checks in the same sidebar. Akaire ships a default `.textlintrc.json` that enables `textlint-rule-preset-ja-technical-writing`, so you also need that preset installed where your `textlint` binary can resolve it (e.g. `npm i -g textlint textlint-rule-preset-ja-technical-writing`). If your vault already has its own `.textlintrc` upward from the note, that one is used instead.
 
 ## Installation
 
 The plugin is not yet listed in the Obsidian community plugin browser. For now you can install it manually:
 
-1. Build the plugin (see [Development](#development)) or grab `manifest.json`, `main.js`, and `styles.css` from a release.
-2. Copy those three files into `<your-vault>/.obsidian/plugins/obsidian-akaire/`.
+1. Build the plugin (see [Development](#development)) or grab `manifest.json`, `main.js`, `styles.css`, and `.textlintrc.json` from a release.
+2. Copy those four files into `<your-vault>/.obsidian/plugins/obsidian-akaire/`.
 3. Enable Akaire in Settings, Community plugins.
 
 ## Usage

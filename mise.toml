@@ -28,9 +28,10 @@ if [ ! -d "$VAULT/.obsidian" ]; then
 fi
 
 mkdir -p "$PLUGIN_DIR"
-ln -sf "$SRC/dist/main.js"     "$PLUGIN_DIR/main.js"
-ln -sf "$SRC/manifest.json"    "$PLUGIN_DIR/manifest.json"
-ln -sf "$SRC/styles.css"       "$PLUGIN_DIR/styles.css"
+ln -sf "$SRC/dist/main.js"        "$PLUGIN_DIR/main.js"
+ln -sf "$SRC/manifest.json"       "$PLUGIN_DIR/manifest.json"
+ln -sf "$SRC/styles.css"          "$PLUGIN_DIR/styles.css"
+ln -sf "$SRC/.textlintrc.json"    "$PLUGIN_DIR/.textlintrc.json"
 
 echo "Installed:"
 ls -l "$PLUGIN_DIR"
@@ -48,7 +49,7 @@ if [ ! -d "$PLUGIN_DIR" ]; then
   exit 0
 fi
 
-command rm -f "$PLUGIN_DIR/main.js" "$PLUGIN_DIR/manifest.json" "$PLUGIN_DIR/styles.css"
+command rm -f "$PLUGIN_DIR/main.js" "$PLUGIN_DIR/manifest.json" "$PLUGIN_DIR/styles.css" "$PLUGIN_DIR/.textlintrc.json"
 rmdir "$PLUGIN_DIR" 2>/dev/null || true
 echo "Uninstalled from $PLUGIN_DIR"
 '''

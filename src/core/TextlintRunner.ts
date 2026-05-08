@@ -1,5 +1,6 @@
 import type { ChildProcess } from 'node:child_process';
-import { dirname, isAbsolute } from 'node:path';
+import { existsSync } from 'node:fs';
+import { dirname, isAbsolute, join } from 'node:path';
 import type { TextlintResult, TextlintMessage } from '../types';
 import { log } from '../util/logger';
 
@@ -9,14 +10,59 @@ export type SpawnFn = (
   opts?: { cwd?: string }
 ) => ChildProcess;
 
+const TEXTLINTRC_NAMES = [
+  '.textlintrc',
+  '.textlintrc.json',
+  '.textlintrc.js',
+  '.textlintrc.yml',
+  '.textlintrc.yaml',
+];
+
+function findUpwardTextlintrc(start: string): boolean {
+  let dir = start;
+  while (true) {
+    for (const name of TEXTLINTRC_NAMES) {
+      if (existsSync(join(dir, name))) return true;
+    }
+    const parent = dirname(dir);
+    if (parent === dir) return false;
+    dir = parent;
+  }
+}
+
 export class TextlintRunner {
-  constructor(private opts: { binary: string; preArgs?: string[]; spawn: SpawnFn }) {}
+  constructor(
+    private opts: {
+      binary: string;
+      preArgs?: string[];
+      spawn: SpawnFn;
+      // .textlintrc がノートの祖先ディレクトリに無い場合に使う既定の設定ファイル。
+      // Akaireはプラグインフォルダに同梱した.textlintrc.jsonを渡す。
+      defaultConfigPath?: string;
+    }
+  ) {}
 
   async lint(filePath: string): Promise<TextlintResult> {
-    const args = [...(this.opts.preArgs ?? []), '-f', 'json', filePath];
     // textlint は CWD から `.textlintrc` を探すので、ファイルのあるディレクトリを cwd にする
     const cwd = isAbsolute(filePath) ? dirname(filePath) : undefined;
-    log('info', 'TextlintRunner.lint spawn', { binary: this.opts.binary, args, cwd });
+    const useDefault =
+      !!this.opts.defaultConfigPath &&
+      !!cwd &&
+      !findUpwardTextlintrc(cwd) &&
+      existsSync(this.opts.defaultConfigPath);
+    const args = [
+      ...(this.opts.preArgs ?? []),
+      ...(useDefault ? ['--config', this.opts.defaultConfigPath!] : []),
+      '-f',
+      'json',
+      filePath,
+    ];
+    log('info', 'TextlintRunner.lint spawn', {
+      binary: this.opts.binary,
+      args,
+      cwd,
+      useDefaultConfig: useDefault,
+    });
     return new Promise((resolve) => {
       const child = this.opts.spawn(this.opts.binary, args, cwd ? { cwd } : undefined);
       let stdout = '';
@@ -31,6 +77,14 @@ export class TextlintRunner {
         log('info', 'TextlintRunner closed', { code, stdoutLen: stdout.length, stderr: stderr.trim() });
         if (code !== 0 && code !== 1) {
           resolve({ available: false, reason: `exit ${code}: ${stderr.trim()}` });
+          return;
+        }
+        // textlint は .textlintrc が見つからないとき exit 1 と共に
+        // "== No rules found ==" を stdout に書き出す。バイナリ自体は動いている
+        // ので "見つからない" 扱いにせず、findings 0 件として扱う。
+        if (/No rules? found/i.test(stdout)) {
+          log('info', 'TextlintRunner no rules configured', { cwd });
+          resolve({ available: true, messages: [] });
           return;
         }
         try {
