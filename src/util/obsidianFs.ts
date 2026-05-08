@@ -1,4 +1,4 @@
-import { App, FileSystemAdapter } from 'obsidian';
+import { App, FileSystemAdapter, normalizePath } from 'obsidian';
 import type { FsApi } from '../core/PromptResolver';
 import type { AnchorFsApi } from '../core/AnchorStore';
 import { log } from './logger';
@@ -10,9 +10,10 @@ import { log } from './logger';
  * vaultRoot のプレフィックスを剥がしてから adapter に渡す。
  */
 function toVaultRelative(p: string, vaultRoot: string): string {
-  if (p.startsWith(vaultRoot + '/')) return p.slice(vaultRoot.length + 1);
-  if (p === vaultRoot) return '';
-  return p; // 既に相対 or vault外（後者はadapter.readで失敗してnullになる）
+  const np = normalizePath(p);
+  if (np.startsWith(vaultRoot + '/')) return np.slice(vaultRoot.length + 1);
+  if (np === vaultRoot) return '';
+  return np; // 既に相対 or vault外（後者はadapter.readで失敗してnullになる）
 }
 
 function getVaultRoot(app: App): string {
@@ -22,6 +23,9 @@ function getVaultRoot(app: App): string {
   }
   return adapter.getBasePath();
 }
+
+const joinPath = (...parts: string[]) =>
+  normalizePath(parts.join('/').replace(/\/+/g, '/'));
 
 export function makeFsApi(app: App): FsApi {
   const vaultRoot = getVaultRoot(app);
@@ -36,7 +40,7 @@ export function makeFsApi(app: App): FsApi {
         return null;
       }
     },
-    pathJoin: (...parts) => parts.join('/').replace(/\/+/g, '/'),
+    pathJoin: joinPath,
     relative: (from, to) => to.replace(from + '/', ''),
   };
 }
@@ -58,7 +62,7 @@ export function makeAnchorFsApi(app: App): AnchorFsApi {
       const exists = await app.vault.adapter.exists(rel);
       if (!exists) await app.vault.adapter.mkdir(rel);
     },
-    pathJoin: (...parts) => parts.join('/').replace(/\/+/g, '/'),
+    pathJoin: joinPath,
     dirname: (p) => p.substring(0, p.lastIndexOf('/')),
   };
 }

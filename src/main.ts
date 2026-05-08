@@ -4,6 +4,7 @@ import {
   TFile,
   WorkspaceLeaf,
   FileSystemAdapter,
+  normalizePath,
 } from 'obsidian';
 import { spawn } from 'node:child_process';
 import { EditorView } from '@codemirror/view';
@@ -49,7 +50,7 @@ export default class EditorPlugin extends Plugin {
     // ノート祖先に .textlintrc が見つかればそちらを優先するので、
     // ユーザ独自の設定は壊れない。
     const defaultTextlintConfig = this.manifest.dir
-      ? `${vaultRoot}/${this.manifest.dir}/.textlintrc.json`
+      ? normalizePath(`${vaultRoot}/${this.manifest.dir}/.textlintrc.json`)
       : undefined;
     this.textlint = new TextlintRunner({
       binary: textlintBin,
@@ -171,7 +172,7 @@ export default class EditorPlugin extends Plugin {
     sidebarView?.bind?.(this.session, cm);
 
     // textlintの可用性を確認しバナー表示
-    const absoluteFilePath = `${this.getVaultRoot()}/${view.file.path}`;
+    const absoluteFilePath = normalizePath(`${this.getVaultRoot()}/${view.file.path}`);
     log('info', 'onLeafChange probing textlint', { filePath: view.file.path, absoluteFilePath });
     const probe = await this.textlint.lint(absoluteFilePath);
     if (myGen !== this.leafGen) return;
