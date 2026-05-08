@@ -1,6 +1,7 @@
 import type { ChildProcess } from 'node:child_process';
 import type { ReviewComment } from '../types';
 import { log } from '../util/logger';
+import { extractJsonObject } from '../util/extractJsonObject';
 
 export type SpawnFn = (
   cmd: string,
@@ -12,6 +13,7 @@ export interface ClaudeRunnerOpts {
   claudeBinary: string;
   spawn: SpawnFn;
   timeoutMs: number;
+  model?: string;
 }
 
 export interface ReviewArgs {
@@ -41,16 +43,69 @@ export class ClaudeRunError extends Error {
   }
 }
 
+export const REVIEW_SCHEMA = {
+  type: 'object',
+  required: ['comments'],
+  properties: {
+    comments: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['id', 'quote', 'severity', 'message'],
+        properties: {
+          id: { type: 'string' },
+          quote: { type: 'string' },
+          contextBefore: { type: 'string' },
+          contextAfter: { type: 'string' },
+          severity: { enum: ['info', 'suggestion', 'warning'] },
+          message: { type: 'string' },
+          suggestion: { type: 'string' },
+        },
+      },
+    },
+  },
+} as const;
+
+export function buildReviewUserPrompt(args: ReviewArgs): string {
+  const findings = args.textlintFindings && args.textlintFindings.length
+    ? `\n\n<textlint_findings>\n${JSON.stringify(args.textlintFindings)}\n</textlint_findings>\nNote: textlintは形式エラーを既に指摘しています。重複を避け、内容・論理・読みやすさを見てください。`
+    : '';
+  return [
+    '次の文章をレビューし、以下のJSON schemaに**厳密に**従ったJSONオブジェクトのみを返してください。',
+    '前置きや説明文、コードフェンス（```）は不要です。JSON以外の文字を出力しないでください。',
+    '',
+    '<schema>',
+    JSON.stringify(REVIEW_SCHEMA),
+    '</schema>',
+    '',
+    '<text>',
+    args.text,
+    '</text>',
+  ].join('\n') + findings;
+}
+
 export class ClaudeRunner {
   constructor(private opts: ClaudeRunnerOpts) {}
 
   async review(args: ReviewArgs): Promise<ReviewResult> {
-    const userPrompt = this.buildReviewPrompt(args);
+    const userPrompt = buildReviewUserPrompt(args);
     const argv = this.buildArgs(args, true);
     const { stdout, sessionId } = await this.run(argv, userPrompt, args.vaultDir, args.signal);
 
     const outerMaybe = this.parseClaudeJson(stdout);
-    const inner = JSON.parse(outerMaybe.result);
+    let inner: { comments?: unknown };
+    if (outerMaybe.structured_output && typeof outerMaybe.structured_output === 'object') {
+      inner = outerMaybe.structured_output as { comments?: unknown };
+    } else {
+      try {
+        inner = extractJsonObject(outerMaybe.result) as { comments?: unknown };
+      } catch (e) {
+        throw new ClaudeRunError(
+          `Claude did not return structured output: ${(e as Error).message}`,
+          outerMaybe.result,
+        );
+      }
+    }
     if (!Array.isArray(inner.comments)) {
       throw new ClaudeRunError('Schema mismatch', stdout);
     }
@@ -75,29 +130,11 @@ export class ClaudeRunner {
       '--add-dir', args.vaultDir,
       '--append-system-prompt', args.systemPrompt,
     ];
+    if (this.opts.model) {
+      a.push('--model', this.opts.model);
+    }
     if (structured) {
-      a.push('--json-schema', JSON.stringify({
-        type: 'object',
-        required: ['comments'],
-        properties: {
-          comments: {
-            type: 'array',
-            items: {
-              type: 'object',
-              required: ['id', 'quote', 'severity', 'message'],
-              properties: {
-                id: { type: 'string' },
-                quote: { type: 'string' },
-                contextBefore: { type: 'string' },
-                contextAfter: { type: 'string' },
-                severity: { enum: ['info', 'suggestion', 'warning'] },
-                message: { type: 'string' },
-                suggestion: { type: 'string' },
-              },
-            },
-          },
-        },
-      }));
+      a.push('--json-schema', JSON.stringify(REVIEW_SCHEMA));
     }
     if (args.sessionId) {
       a.push('--resume', args.sessionId);
@@ -106,19 +143,16 @@ export class ClaudeRunner {
   }
 
   private buildChatArgs(args: ChatArgs): string[] {
-    return [
+    const a: string[] = [
       '-p',
       '--output-format', 'json',
       '--add-dir', args.vaultDir,
       '--resume', args.sessionId,
     ];
-  }
-
-  private buildReviewPrompt(args: ReviewArgs): string {
-    const findings = args.textlintFindings && args.textlintFindings.length
-      ? `\n\n<textlint_findings>\n${JSON.stringify(args.textlintFindings)}\n</textlint_findings>\nNote: textlintは形式エラーを既に指摘しています。重複を避け、内容・論理・読みやすさを見てください。`
-      : '';
-    return `次の文章をレビューし、JSON schemaに従ってコメントを返してください。\n\n<text>\n${args.text}\n</text>${findings}`;
+    if (this.opts.model) {
+      a.push('--model', this.opts.model);
+    }
+    return a;
   }
 
   private async run(
@@ -175,6 +209,7 @@ export class ClaudeRunner {
           const parsed = this.parseClaudeJson(stdout);
           log('info', 'ClaudeRunner parsed', {
             sessionId: parsed.session_id,
+            hasStructuredOutput: parsed.structured_output !== undefined,
             resultPreview: parsed.result.slice(0, 200),
           });
           resolve({ stdout, stderr, sessionId: parsed.session_id });
@@ -194,7 +229,9 @@ export class ClaudeRunner {
     });
   }
 
-  private parseClaudeJson(stdout: string): { result: string; session_id: string } {
+  private parseClaudeJson(
+    stdout: string,
+  ): { result: string; session_id: string; structured_output?: unknown } {
     try {
       const obj = JSON.parse(stdout);
       if (typeof obj.result !== 'string' || typeof obj.session_id !== 'string') {
