@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { AnchorStore, AnchorFsApi } from '../src/core/AnchorStore';
-import type { PersistedAnchor } from '../src/types';
+import type { PersistedAnchor, ChatMessage } from '../src/types';
 
 function makeFs(): { fs: AnchorFsApi; files: Map<string, string> } {
   const files = new Map<string, string>();
@@ -55,5 +55,33 @@ describe('AnchorStore', () => {
     files.set('/vault/.editor-state/broken.md.json', 'not json {');
     const store = new AnchorStore({ vaultRoot: '/vault', fs });
     expect(await store.load('broken.md')).toEqual([]);
+  });
+
+  it('roundtrips full state including chat through saveState/loadState', async () => {
+    const { fs } = makeFs();
+    const store = new AnchorStore({ vaultRoot: '/vault', fs });
+    const chat: ChatMessage[] = [
+      { kind: 'user', text: 'もっと厳しく', ts: 1 },
+      { kind: 'ai', text: '了解しました', ts: 2 },
+    ];
+
+    await store.saveState('blog/post.md', { anchors: [sample], chat });
+    const loaded = await store.loadState('blog/post.md');
+
+    expect(loaded.anchors).toEqual([sample]);
+    expect(loaded.chat).toEqual(chat);
+  });
+
+  it('loadState reads legacy files (anchors only) with empty chat', async () => {
+    const { fs, files } = makeFs();
+    files.set(
+      '/vault/.editor-state/legacy.md.json',
+      JSON.stringify({ anchors: [sample] }),
+    );
+    const store = new AnchorStore({ vaultRoot: '/vault', fs });
+
+    const loaded = await store.loadState('legacy.md');
+    expect(loaded.anchors).toEqual([sample]);
+    expect(loaded.chat).toEqual([]);
   });
 });

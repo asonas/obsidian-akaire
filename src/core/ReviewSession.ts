@@ -1,4 +1,4 @@
-import type { ReviewComment, PersistedAnchor } from '../types';
+import type { ReviewComment, PersistedAnchor, ChatMessage } from '../types';
 import { findAnchor } from '../editor/anchorMatcher';
 import { splitParagraphs, paragraphHash, diffParagraphs } from '../util/paragraphHash';
 import type { ClaudeRunner } from './ClaudeRunner';
@@ -13,8 +13,8 @@ export interface EditorBridge {
 }
 
 export interface AnchorStoreApi {
-  load(notePath: string): Promise<PersistedAnchor[]>;
-  save(notePath: string, anchors: PersistedAnchor[]): Promise<void>;
+  loadState(notePath: string): Promise<{ anchors: PersistedAnchor[]; chat: ChatMessage[] }>;
+  saveState(notePath: string, state: { anchors: PersistedAnchor[]; chat: ChatMessage[] }): Promise<void>;
 }
 
 export interface ReviewSessionOpts {
@@ -38,15 +38,20 @@ interface ActiveAnchor {
 export class ReviewSession {
   comments: ReviewComment[] = [];
   sessionId: string | null = null;
+  chatLog: ChatMessage[] = [];
   private anchors: Map<string, ActiveAnchor> = new Map();
   private lastReviewedHash: Map<string, string> = new Map();
 
   constructor(private opts: ReviewSessionOpts) {}
 
+  get notePath(): string {
+    return this.opts.notePath;
+  }
+
   async rehydrate(): Promise<void> {
-    const persisted = await this.opts.anchorStore.load(this.opts.notePath);
+    const state = await this.opts.anchorStore.loadState(this.opts.notePath);
     const text = this.opts.editor.getText();
-    for (const p of persisted) {
+    for (const p of state.anchors) {
       const hit = findAnchor(text, p);
       this.anchors.set(p.id, {
         comment: p.comment,
@@ -57,6 +62,7 @@ export class ReviewSession {
       });
       this.comments.push(p.comment);
     }
+    this.chatLog = state.chat;
     this.refreshHighlights();
   }
 
@@ -74,7 +80,10 @@ export class ReviewSession {
         resolved: a.resolved,
       });
     }
-    await this.opts.anchorStore.save(this.opts.notePath, persisted);
+    await this.opts.anchorStore.saveState(this.opts.notePath, {
+      anchors: persisted,
+      chat: this.chatLog,
+    });
   }
 
   async runReview(mode: 'full' | 'diff', signal?: AbortSignal): Promise<void> {
@@ -107,6 +116,7 @@ export class ReviewSession {
     }
     this.refreshHighlights();
     this.updateBaseline(text);
+    await this.persist();
   }
 
   applyComment(commentId: string): void {
@@ -116,6 +126,7 @@ export class ReviewSession {
     this.opts.editor.replaceRange(a.comment.suggestion, a.from, a.to);
     a.resolved = true;
     this.refreshHighlights();
+    void this.persist();
   }
 
   dismissComment(commentId: string): void {
@@ -123,19 +134,29 @@ export class ReviewSession {
     if (!a) return;
     a.resolved = true;
     this.refreshHighlights();
+    void this.persist();
   }
 
   async sendChatMessage(message: string, signal?: AbortSignal): Promise<string> {
     if (!this.sessionId) {
       throw new Error('no session yet — run review first');
     }
-    const result = await this.opts.runner.chat({
-      message,
-      sessionId: this.sessionId,
-      vaultDir: this.opts.vaultDir,
-      signal,
-    });
-    return result.reply;
+    this.chatLog.push({ kind: 'user', text: message, ts: Date.now() });
+    try {
+      const result = await this.opts.runner.chat({
+        message,
+        sessionId: this.sessionId,
+        vaultDir: this.opts.vaultDir,
+        signal,
+      });
+      this.chatLog.push({ kind: 'ai', text: result.reply, ts: Date.now() });
+      await this.persist();
+      return result.reply;
+    } catch (e) {
+      this.chatLog.push({ kind: 'err', text: (e as Error).message, ts: Date.now() });
+      await this.persist();
+      throw e;
+    }
   }
 
   private addCommentAnchor(c: ReviewComment): void {

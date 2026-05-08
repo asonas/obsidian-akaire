@@ -40,7 +40,7 @@ describe('ReviewSession.runReview diff', () => {
 
     const session = new ReviewSession({
       notePath: 'n.md', editor,
-      anchorStore: { load: async () => [], save: async () => {} },
+      anchorStore: { loadState: async () => ({ anchors: [], chat: [] }), saveState: async () => {} },
       runner: fakeRunner, textlint: fakeTextlint, promptResolver: fakeResolver,
       vaultDir: '/v',
     });
@@ -73,7 +73,7 @@ describe('ReviewSession.runReview full', () => {
     const session = new ReviewSession({
       notePath: 'note.md',
       editor,
-      anchorStore: { load: async () => [], save: async () => {} },
+      anchorStore: { loadState: async () => ({ anchors: [], chat: [] }), saveState: async () => {} },
       runner: fakeRunner,
       textlint: fakeTextlint,
       promptResolver: fakeResolver,
@@ -93,7 +93,7 @@ describe('ReviewSession.applyComment', () => {
     const editor = makeEditorBridge('これは冗長な表現です。');
     const session = new ReviewSession({
       notePath: 'n.md', editor,
-      anchorStore: { load: async () => [], save: async () => {} },
+      anchorStore: { loadState: async () => ({ anchors: [], chat: [] }), saveState: async () => {} },
       runner: null as any, textlint: null as any, promptResolver: null as any,
       vaultDir: '/v',
     });
@@ -118,7 +118,7 @@ describe('ReviewSession.sendChatMessage', () => {
     };
     const session = new ReviewSession({
       notePath: 'n.md', editor,
-      anchorStore: { load: async () => [], save: async () => {} },
+      anchorStore: { loadState: async () => ({ anchors: [], chat: [] }), saveState: async () => {} },
       runner: fakeRunner, textlint: null as any, promptResolver: null as any,
       vaultDir: '/v',
     });
@@ -130,6 +130,100 @@ describe('ReviewSession.sendChatMessage', () => {
     expect(fakeRunner.chat).toHaveBeenCalledWith({
       message: 'hi', sessionId: 's1', vaultDir: '/v',
     });
+  });
+
+  it('appends user and ai messages to chatLog and persists them', async () => {
+    const editor = makeEditorBridge('text');
+    const fakeRunner = {
+      review: vi.fn(),
+      chat: vi.fn(async () => ({ reply: '了解しました' })),
+    };
+    const saved: any[] = [];
+    const session = new ReviewSession({
+      notePath: 'n.md', editor,
+      anchorStore: {
+        loadState: async () => ({ anchors: [], chat: [] }),
+        saveState: async (_p: string, state: any) => { saved.push(state); },
+      },
+      runner: fakeRunner, textlint: null as any, promptResolver: null as any,
+      vaultDir: '/v',
+    });
+    session.sessionId = 's1';
+
+    await session.sendChatMessage('もっと厳しく');
+
+    expect(session.chatLog.map((m) => m.kind)).toEqual(['user', 'ai']);
+    expect(session.chatLog[0].text).toBe('もっと厳しく');
+    expect(session.chatLog[1].text).toBe('了解しました');
+    expect(saved.at(-1).chat.map((m: any) => m.kind)).toEqual(['user', 'ai']);
+  });
+
+  it('records error messages in chatLog when chat fails', async () => {
+    const editor = makeEditorBridge('text');
+    const fakeRunner = {
+      review: vi.fn(),
+      chat: vi.fn(async () => { throw new Error('boom'); }),
+    };
+    const session = new ReviewSession({
+      notePath: 'n.md', editor,
+      anchorStore: { loadState: async () => ({ anchors: [], chat: [] }), saveState: async () => {} },
+      runner: fakeRunner, textlint: null as any, promptResolver: null as any,
+      vaultDir: '/v',
+    });
+    session.sessionId = 's1';
+
+    await expect(session.sendChatMessage('test')).rejects.toThrow('boom');
+    expect(session.chatLog.map((m) => m.kind)).toEqual(['user', 'err']);
+  });
+});
+
+describe('ReviewSession.persistence', () => {
+  it('persists immediately after a successful runReview', async () => {
+    const editor = makeEditorBridge('これは冗長な表現です。');
+    const fakeRunner = {
+      review: vi.fn(async () => ({ comments: [sampleComment], newSessionId: 's' })),
+      chat: vi.fn(),
+    };
+    const fakeTextlint = { lint: async () => ({ available: true, messages: [] }) };
+    const fakeResolver = { resolvePrompt: async () => ({ systemPrompt: '', sources: [] }) };
+    const saveState = vi.fn(async () => {});
+
+    const session = new ReviewSession({
+      notePath: 'n.md', editor,
+      anchorStore: { loadState: async () => ({ anchors: [], chat: [] }), saveState },
+      runner: fakeRunner, textlint: fakeTextlint, promptResolver: fakeResolver,
+      vaultDir: '/v',
+    });
+
+    await session.runReview('full');
+
+    expect(saveState).toHaveBeenCalled();
+    const lastCall = saveState.mock.calls.at(-1) as any;
+    expect(lastCall?.[1].anchors).toHaveLength(1);
+  });
+
+  it('rehydrate restores chatLog from store', async () => {
+    const editor = makeEditorBridge('テキスト');
+    const session = new ReviewSession({
+      notePath: 'n.md', editor,
+      anchorStore: {
+        loadState: async () => ({
+          anchors: [],
+          chat: [
+            { kind: 'user', text: 'もっと短く', ts: 1 },
+            { kind: 'ai', text: '了解', ts: 2 },
+          ],
+        }),
+        saveState: async () => {},
+      },
+      runner: null as any, textlint: null as any, promptResolver: null as any,
+      vaultDir: '/v',
+    });
+
+    await session.rehydrate();
+
+    expect(session.chatLog).toHaveLength(2);
+    expect(session.chatLog[1].text).toBe('了解');
   });
 });
 
@@ -145,8 +239,8 @@ describe('ReviewSession.rehydrate', () => {
       notePath: 'note.md',
       editor,
       anchorStore: {
-        load: async () => stored,
-        save: async () => {},
+        loadState: async () => ({ anchors: stored, chat: [] }),
+        saveState: async () => {},
       },
       runner: null as any,
       textlint: null as any,
@@ -170,7 +264,7 @@ describe('ReviewSession.runReview abort', () => {
 
     const session = new ReviewSession({
       notePath: 'n.md', editor,
-      anchorStore: { load: async () => [], save: async () => {} },
+      anchorStore: { loadState: async () => ({ anchors: [], chat: [] }), saveState: async () => {} },
       runner: fakeRunner, textlint: fakeTextlint, promptResolver: fakeResolver,
       vaultDir: '/v',
     });
@@ -193,7 +287,7 @@ describe('ReviewSession.rehydrate stale', () => {
 
     const session = new ReviewSession({
       notePath: 'note.md', editor,
-      anchorStore: { load: async () => stored, save: async () => {} },
+      anchorStore: { loadState: async () => ({ anchors: stored, chat: [] }), saveState: async () => {} },
       runner: null as any, textlint: null as any, promptResolver: null as any,
       vaultDir: '/vault',
     });
@@ -216,7 +310,7 @@ describe('ReviewSession.applyComment stale guard', () => {
     }];
     const session = new ReviewSession({
       notePath: 'n.md', editor,
-      anchorStore: { load: async () => stored, save: async () => {} },
+      anchorStore: { loadState: async () => ({ anchors: stored, chat: [] }), saveState: async () => {} },
       runner: null as any, textlint: null as any, promptResolver: null as any,
       vaultDir: '/v',
     });

@@ -18,6 +18,12 @@ export interface PersistedAnchor {
   resolved: boolean;
 }
 
+export interface ChatMessage {
+  kind: 'user' | 'ai' | 'err';
+  text: string;
+  ts: number;
+}
+
 export interface TextlintMessage {
   line: number;
   column: number;

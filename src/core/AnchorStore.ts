@@ -1,4 +1,4 @@
-import type { PersistedAnchor } from '../types';
+import type { PersistedAnchor, ChatMessage } from '../types';
 
 export interface AnchorFsApi {
   readFile(path: string): Promise<string | null>;
@@ -8,29 +8,47 @@ export interface AnchorFsApi {
   dirname(path: string): string;
 }
 
+export interface PersistedState {
+  anchors: PersistedAnchor[];
+  chat: ChatMessage[];
+}
+
 export class AnchorStore {
   constructor(
     private opts: { vaultRoot: string; fs: AnchorFsApi }
   ) {}
 
   async load(notePath: string): Promise<PersistedAnchor[]> {
-    const filePath = this.pathFor(notePath);
-    const content = await this.opts.fs.readFile(filePath);
-    if (!content) return [];
-    try {
-      const parsed = JSON.parse(content);
-      return Array.isArray(parsed.anchors) ? parsed.anchors : [];
-    } catch {
-      return [];
-    }
+    const state = await this.loadState(notePath);
+    return state.anchors;
   }
 
   async save(notePath: string, anchors: PersistedAnchor[]): Promise<void> {
+    const existing = await this.loadState(notePath);
+    await this.saveState(notePath, { anchors, chat: existing.chat });
+  }
+
+  async loadState(notePath: string): Promise<PersistedState> {
+    const filePath = this.pathFor(notePath);
+    const content = await this.opts.fs.readFile(filePath);
+    if (!content) return { anchors: [], chat: [] };
+    try {
+      const parsed = JSON.parse(content);
+      return {
+        anchors: Array.isArray(parsed.anchors) ? parsed.anchors : [],
+        chat: Array.isArray(parsed.chat) ? parsed.chat : [],
+      };
+    } catch {
+      return { anchors: [], chat: [] };
+    }
+  }
+
+  async saveState(notePath: string, state: PersistedState): Promise<void> {
     const filePath = this.pathFor(notePath);
     await this.opts.fs.mkdirp(this.opts.fs.dirname(filePath));
     await this.opts.fs.writeFile(
       filePath,
-      JSON.stringify({ anchors }, null, 2)
+      JSON.stringify(state, null, 2)
     );
   }
 
