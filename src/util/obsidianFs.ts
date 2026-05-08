@@ -1,4 +1,4 @@
-import { App } from 'obsidian';
+import { App, FileSystemAdapter } from 'obsidian';
 import type { FsApi } from '../core/PromptResolver';
 import type { AnchorFsApi } from '../core/AnchorStore';
 import { log } from './logger';
@@ -15,8 +15,16 @@ function toVaultRelative(p: string, vaultRoot: string): string {
   return p; // 既に相対 or vault外（後者はadapter.readで失敗してnullになる）
 }
 
+function getVaultRoot(app: App): string {
+  const adapter = app.vault.adapter;
+  if (!(adapter instanceof FileSystemAdapter)) {
+    throw new Error('Akaire requires a FileSystemAdapter (desktop only).');
+  }
+  return adapter.getBasePath();
+}
+
 export function makeFsApi(app: App): FsApi {
-  const vaultRoot = (app.vault.adapter as any).basePath as string;
+  const vaultRoot = getVaultRoot(app);
   return {
     readFile: async (p) => {
       const rel = toVaultRelative(p, vaultRoot);
@@ -34,7 +42,7 @@ export function makeFsApi(app: App): FsApi {
 }
 
 export function makeAnchorFsApi(app: App): AnchorFsApi {
-  const vaultRoot = (app.vault.adapter as any).basePath as string;
+  const vaultRoot = getVaultRoot(app);
   return {
     readFile: async (p) => {
       const rel = toVaultRelative(p, vaultRoot);

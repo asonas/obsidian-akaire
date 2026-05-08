@@ -1,4 +1,10 @@
-import { Plugin, MarkdownView, TFile, WorkspaceLeaf } from 'obsidian';
+import {
+  Plugin,
+  MarkdownView,
+  TFile,
+  WorkspaceLeaf,
+  FileSystemAdapter,
+} from 'obsidian';
 import { spawn } from 'node:child_process';
 import { EditorView } from '@codemirror/view';
 import { SidebarView, VIEW_TYPE_EDITOR } from './ui/SidebarView';
@@ -22,7 +28,7 @@ export default class EditorPlugin extends Plugin {
   private leafGen = 0;
 
   async onload() {
-    const vaultRoot = (this.app.vault.adapter as any).basePath as string;
+    const vaultRoot = this.getVaultRoot();
     log('info', 'plugin onload start', {
       vaultRoot,
       processPath: process.env.PATH,
@@ -103,6 +109,14 @@ export default class EditorPlugin extends Plugin {
     this.app.workspace.detachLeavesOfType(VIEW_TYPE_EDITOR);
   }
 
+  private getVaultRoot(): string {
+    const adapter = this.app.vault.adapter;
+    if (!(adapter instanceof FileSystemAdapter)) {
+      throw new Error('Akaire requires a FileSystemAdapter (desktop only).');
+    }
+    return adapter.getBasePath();
+  }
+
   private async onLeafChange(leaf: WorkspaceLeaf | null): Promise<void> {
     const sidebars = this.app.workspace.getLeavesOfType(VIEW_TYPE_EDITOR);
     const sidebarView = sidebars[0]?.view as SidebarView | undefined;
@@ -157,7 +171,7 @@ export default class EditorPlugin extends Plugin {
     sidebarView?.bind?.(this.session, cm);
 
     // textlintの可用性を確認しバナー表示
-    const absoluteFilePath = `${(this.app.vault.adapter as any).basePath}/${view.file.path}`;
+    const absoluteFilePath = `${this.getVaultRoot()}/${view.file.path}`;
     log('info', 'onLeafChange probing textlint', { filePath: view.file.path, absoluteFilePath });
     const probe = await this.textlint.lint(absoluteFilePath);
     if (myGen !== this.leafGen) return;
@@ -191,7 +205,7 @@ export default class EditorPlugin extends Plugin {
         cm.dispatch({ effects: clearAnchorMarks.of() });
       },
     };
-    const vaultRoot = (this.app.vault.adapter as any).basePath as string;
+    const vaultRoot = this.getVaultRoot();
     return new ReviewSession({
       notePath: file.path,
       editor: bridge,
