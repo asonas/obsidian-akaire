@@ -20,7 +20,7 @@ function debugEnabled(): boolean {
 export function log(level: LogLevel, message: string, data?: unknown): void {
   if ((level === 'info' || level === 'debug') && !debugEnabled()) return;
   const consoleFn =
-    level === 'error' ? console.error : level === 'warn' ? console.warn : console.log;
+    level === 'error' ? console.error : level === 'warn' ? console.warn : console.debug;
   if (data === undefined) {
     consoleFn(`[akaire] ${message}`);
   } else {
