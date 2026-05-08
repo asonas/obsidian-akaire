@@ -3,7 +3,7 @@
   "name": "Akaire",
   "version": "0.1.0",
   "minAppVersion": "1.5.0",
-  "description": "Local AI editor that reviews your writing using Claude Code CLI",
+  "description": "Local AI editor that reviews your writing using Claude Code CLI.",
   "author": "asonas",
   "isDesktopOnly": true
 }
