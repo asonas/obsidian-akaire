@@ -78,7 +78,7 @@ export function renderCommentCard(
     text: 'このままにする',
     attr: {
       type: 'button',
-      title: 'この指摘を「このままで良い」と判断する。次回レビューで Claude にもこの意図を伝えます',
+      title: 'この指摘を「このままで良い」と判断する。次回レビューでAIにもこの意図を伝えます',
     },
   });
   keep.addEventListener('click', () => cb.onKeep(comment.id));
@@ -87,7 +87,7 @@ export function renderCommentCard(
     text: '閉じる',
     attr: {
       type: 'button',
-      title: 'このコメントを非表示にする。手動で別の表現に直したときなどに使います（Claude には伝えません）',
+      title: 'このコメントを非表示にする。手動で別の表現に直したときなどに使います（AIには伝えません）',
     },
   });
   close.addEventListener('click', () => cb.onClose(comment.id));
