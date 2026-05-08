@@ -40,4 +40,28 @@ describe('findAnchor', () => {
     });
     expect(result.stale).toBe(true);
   });
+
+  it('marks stale when multiple occurrences cannot be disambiguated by context (lineHint not provided)', () => {
+    // contextBefore/After が空で複数候補 → 確証がないので stale 扱いにする
+    const text = 'foo bar baz\nfoo bar baz\nfoo bar baz';
+    const result = findAnchor(text, {
+      quote: 'foo bar',
+      contextBefore: '',
+      contextAfter: '',
+      // lineHint 省略
+    } as any);
+    expect(result.stale).toBe(true);
+  });
+
+  it('still uses lineHint when explicitly provided', () => {
+    const text = 'foo bar baz\nfoo bar baz\nfoo bar baz';
+    const result = findAnchor(text, {
+      quote: 'foo bar',
+      contextBefore: '',
+      contextAfter: ' baz',
+      lineHint: 1,
+    });
+    expect(result.from).toBe('foo bar baz\n'.length);
+    expect(result.stale).toBe(false);
+  });
 });

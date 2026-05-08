@@ -8,6 +8,8 @@ export interface ReviewComment {
   suggestion?: string;
 }
 
+export type AnchorStatus = 'pending' | 'applied' | 'kept' | 'dismissed';
+
 export interface PersistedAnchor {
   id: string;
   quote: string;
@@ -15,7 +17,9 @@ export interface PersistedAnchor {
   contextAfter: string;
   lineHint: number;
   comment: ReviewComment;
+  // 互換のため resolved は残す。新ストア書き込みでは status から派生して入れる。
   resolved: boolean;
+  status?: AnchorStatus;
 }
 
 export interface ChatMessage {

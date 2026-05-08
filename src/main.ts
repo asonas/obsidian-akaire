@@ -10,7 +10,7 @@ import { PromptResolver } from './core/PromptResolver';
 import { makeFsApi, makeAnchorFsApi } from './util/obsidianFs';
 import { resolveBinary } from './util/resolveBinary';
 import { log } from './util/logger';
-import { anchorField, setAnchorMarks, clearAnchorMarks } from './editor/decoration';
+import { anchorField, jumpFlashField, setAnchorMarks, clearAnchorMarks } from './editor/decoration';
 
 export default class EditorPlugin extends Plugin {
   private session: ReviewSession | null = null;
@@ -36,7 +36,7 @@ export default class EditorPlugin extends Plugin {
     this.runner = new ClaudeRunner({
       claudeBinary: claudeBin,
       spawn,
-      timeoutMs: 180_000, // claude -p は10〜60秒かかることがあるので余裕を持つ
+      timeoutMs: 180_000,
       model: 'sonnet',
     });
     // プラグイン同梱の .textlintrc.json をフォールバックとして渡す。
@@ -68,7 +68,7 @@ export default class EditorPlugin extends Plugin {
       });
       return v;
     });
-    this.registerEditorExtension(anchorField);
+    this.registerEditorExtension([anchorField, jumpFlashField]);
 
     this.registerEvent(
       this.app.workspace.on('active-leaf-change', (leaf) => this.onLeafChange(leaf))

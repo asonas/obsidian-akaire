@@ -1,5 +1,7 @@
 import { ItemView, WorkspaceLeaf } from 'obsidian';
 import { EditorView } from '@codemirror/view';
+import { setJumpFlash } from '../editor/decoration';
+import { log } from '../util/logger';
 import { renderCommentCard, CommentCardCallbacks } from './CommentCard';
 import type { ReviewComment } from '../types';
 import type { ReviewSession } from '../core/ReviewSession';
@@ -195,13 +197,11 @@ export class SidebarView extends ItemView {
       this.renderEmpty();
       return;
     }
-    const items = this.currentSession.comments.map((c) => ({
-      comment: c,
-      stale: false,
-    }));
+    const items = this.currentSession.getVisibleItems();
     this.renderCards(items, {
       onApply: (id) => { this.currentSession!.applyComment(id); this.refresh(); },
-      onDismiss: (id) => { this.currentSession!.dismissComment(id); this.refresh(); },
+      onKeep: (id) => { this.currentSession!.keepAsIs(id); this.refresh(); },
+      onClose: (id) => { this.currentSession!.closeComment(id); this.refresh(); },
       onJump: (id) => this.jumpTo(id),
     });
     this.updateChatLockUI();
@@ -399,12 +399,28 @@ export class SidebarView extends ItemView {
 
   private jumpTo(commentId: string): void {
     if (!this.currentEditorView || !this.currentSession) return;
-    const a = (this.currentSession as any).anchors.get(commentId);
-    if (!a) return;
-    this.currentEditorView.dispatch({
-      selection: { anchor: a.from, head: a.to },
-      scrollIntoView: true,
+    const range = this.currentSession.getAnchorRange(commentId);
+    log('info', 'jumpTo resolved range', {
+      commentId,
+      range,
+      docLen: this.currentEditorView.state.doc.length,
     });
+    if (!range) return;
+    const view = this.currentEditorView;
+    // y: 'start' で対象を画面上部寄せ、yMargin で天井から少し離して読みやすく。
+    view.dispatch({
+      selection: { anchor: range.from },
+      effects: [
+        EditorView.scrollIntoView(range.from, { y: 'start', yMargin: 80 }),
+        setJumpFlash.of(range),
+      ],
+    });
+    view.focus();
+    // フラッシュは一定時間後に消す。同じ箇所への連打でも再アニメーションが
+    // 効くよう、毎回 set→clear を都度発火させる。
+    window.setTimeout(() => {
+      view.dispatch({ effects: setJumpFlash.of(null) });
+    }, 1500);
   }
 
   private attachChatHandler(): void {

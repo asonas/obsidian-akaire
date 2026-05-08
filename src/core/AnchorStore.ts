@@ -52,6 +52,21 @@ export class AnchorStore {
     );
   }
 
+  // デバッグ用に任意のラベル付き JSON を保存する。レビュー結果の生 JSON や
+  // anchor 解決の入出力を記録して、anchor がズレた等の動作不審の原因調査に使う。
+  async saveDebug(notePath: string, label: string, payload: unknown): Promise<void> {
+    const filePath = this.opts.fs.pathJoin(
+      this.opts.vaultRoot,
+      '.editor-state',
+      notePath + `.${label}.json`
+    );
+    await this.opts.fs.mkdirp(this.opts.fs.dirname(filePath));
+    await this.opts.fs.writeFile(
+      filePath,
+      JSON.stringify(payload, null, 2)
+    );
+  }
+
   private pathFor(notePath: string): string {
     return this.opts.fs.pathJoin(
       this.opts.vaultRoot,

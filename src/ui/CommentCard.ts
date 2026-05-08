@@ -2,7 +2,8 @@ import type { ReviewComment } from '../types';
 
 export interface CommentCardCallbacks {
   onApply(commentId: string): void;
-  onDismiss(commentId: string): void;
+  onKeep(commentId: string): void;
+  onClose(commentId: string): void;
   onJump(commentId: string): void;
 }
 
@@ -73,11 +74,23 @@ export function renderCommentCard(
   });
   jump.addEventListener('click', () => cb.onJump(comment.id));
 
-  const dismiss = buttons.createEl('button', {
-    text: '閉じる',
-    attr: { type: 'button', title: 'このコメントを非表示にする' },
+  const keep = buttons.createEl('button', {
+    text: 'このままにする',
+    attr: {
+      type: 'button',
+      title: 'この指摘を「このままで良い」と判断する。次回レビューで Claude にもこの意図を伝えます',
+    },
   });
-  dismiss.addEventListener('click', () => cb.onDismiss(comment.id));
+  keep.addEventListener('click', () => cb.onKeep(comment.id));
+
+  const close = buttons.createEl('button', {
+    text: '閉じる',
+    attr: {
+      type: 'button',
+      title: 'このコメントを非表示にする。手動で別の表現に直したときなどに使います（Claude には伝えません）',
+    },
+  });
+  close.addEventListener('click', () => cb.onClose(comment.id));
 
   return card;
 }

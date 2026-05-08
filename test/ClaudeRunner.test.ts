@@ -111,6 +111,32 @@ describe('buildReviewUserPrompt', () => {
     });
     expect(prompt).toMatch(/JSON.*のみ|only.*JSON/i);
   });
+
+  it('includes kept-as-is items when provided', () => {
+    const prompt = buildReviewUserPrompt({
+      text: 'これは冗長な表現です',
+      systemPrompt: '',
+      sessionId: null,
+      vaultDir: '/tmp',
+      keepAsIs: [
+        { quote: '冗長な表現', message: '簡潔に' },
+      ],
+    });
+    expect(prompt).toContain('<kept_as_is>');
+    expect(prompt).toContain('冗長な表現');
+    expect(prompt).toContain('簡潔に');
+  });
+
+  it('does not include kept_as_is block when list is empty', () => {
+    const prompt = buildReviewUserPrompt({
+      text: 'x',
+      systemPrompt: '',
+      sessionId: null,
+      vaultDir: '/tmp',
+      keepAsIs: [],
+    });
+    expect(prompt).not.toContain('<kept_as_is>');
+  });
 });
 
 describe('ClaudeRunner.chat', () => {
@@ -177,6 +203,56 @@ describe('ClaudeRunner model option', () => {
 
     const args = readFileSync(argLog, 'utf8').split('\n');
     expect(args).not.toContain('--model');
+  });
+});
+
+describe('ClaudeRunner review args (tool use disabled)', () => {
+  it('disables all tools via --disallowed-tools to skip Claude Code tool deliberation', async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'akaire-args-'));
+    const argLog = path.join(dir, 'args.log');
+    const recordingSpawn: typeof nodeSpawn = (cmd, args, opts) =>
+      nodeSpawn(cmd, args as string[], { ...opts, env: { ...process.env, AKAIRE_FAKE_ARG_LOG: argLog } } as any);
+
+    const runner = new ClaudeRunner({
+      claudeBinary: FAKE_RECORD_ARGS,
+      spawn: recordingSpawn,
+      timeoutMs: 5000,
+    });
+
+    await runner.review({
+      text: 'x',
+      systemPrompt: 'y',
+      sessionId: null,
+      vaultDir: '/tmp',
+    });
+
+    const args = readFileSync(argLog, 'utf8').split('\n');
+    expect(args).toContain('--disallowed-tools');
+  });
+});
+
+describe('ClaudeRunner review args (schema not enforced via flag)', () => {
+  it('does NOT pass --json-schema to claude (we rely on prompt + parser fallback)', async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'akaire-args-'));
+    const argLog = path.join(dir, 'args.log');
+    const recordingSpawn: typeof nodeSpawn = (cmd, args, opts) =>
+      nodeSpawn(cmd, args as string[], { ...opts, env: { ...process.env, AKAIRE_FAKE_ARG_LOG: argLog } } as any);
+
+    const runner = new ClaudeRunner({
+      claudeBinary: FAKE_RECORD_ARGS,
+      spawn: recordingSpawn,
+      timeoutMs: 5000,
+    });
+
+    await runner.review({
+      text: 'x',
+      systemPrompt: 'y',
+      sessionId: null,
+      vaultDir: '/tmp',
+    });
+
+    const args = readFileSync(argLog, 'utf8').split('\n');
+    expect(args).not.toContain('--json-schema');
   });
 });
 

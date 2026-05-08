@@ -2,7 +2,9 @@ export interface AnchorQuery {
   quote: string;
   contextBefore: string;
   contextAfter: string;
-  lineHint: number;
+  // lineHint が undefined のとき、複数候補を context で絞れなければ stale=true を返す。
+  // 数値が与えられた場合のみ「最寄り行」フォールバックを使う。
+  lineHint?: number;
 }
 
 export interface AnchorHit {
@@ -42,6 +44,11 @@ export function findAnchor(text: string, q: AnchorQuery): AnchorHit {
   }
 
   const candidates = ctxFiltered.length > 0 ? ctxFiltered : occurrences;
+  // lineHint が無いと「適当に topmost を選ぶ」しかなくなるため、ここで素直に
+  // 降参する（stale=true）。UI 側でカードを「無効」表示にして誤誘導を避ける。
+  if (q.lineHint === undefined) {
+    return { from: 0, to: 0, stale: true };
+  }
   const target = pickClosestByLine(text, candidates, q.lineHint);
   return makeHit(target, q.quote);
 }
