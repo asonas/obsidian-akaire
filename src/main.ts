@@ -83,7 +83,8 @@ export default class EditorPlugin extends Plugin {
 
     // プラグイン再読み込み時、既にmarkdownノートが開いていれば initial probe
     this.app.workspace.onLayoutReady(() => {
-      this.onLeafChange(this.app.workspace.activeLeaf);
+      const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+      this.onLeafChange(view?.leaf ?? null);
     });
 
     this.addCommand({
