@@ -289,6 +289,9 @@
   color: var(--akaire-ink-soft);
 }
 .akaire-legend:empty { display: none; }
+
+/* utility — toggled by JS when a section needs to be hidden */
+.akaire-hidden { display: none; }
 .akaire-legend__item {
   display: inline-flex;
   align-items: center;

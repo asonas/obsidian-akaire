@@ -53,27 +53,27 @@ export class SidebarView extends ItemView {
     this.wireActions();
   }
 
-  async onOpen(): Promise<void> {
+  onOpen(): Promise<void> {
     const root = this.containerEl.children[1] as HTMLElement;
     root.empty();
-    const wrap = root.createEl('div', { cls: 'akaire-root' });
+    const wrap = root.createDiv({ cls: 'akaire-root' });
 
     // ---- header
-    const header = wrap.createEl('div', { cls: 'akaire-header' });
-    const title = header.createEl('div', { cls: 'akaire-title' });
-    title.createEl('span', { cls: 'akaire-title__kanji', text: '赤入れ' });
-    title.createEl('span', { cls: 'akaire-title__roma', text: 'Akaire' });
-    this.elPhase = header.createEl('span', {
+    const header = wrap.createDiv({ cls: 'akaire-header' });
+    const title = header.createDiv({ cls: 'akaire-title' });
+    title.createSpan({ cls: 'akaire-title__kanji', text: '赤入れ' });
+    title.createSpan({ cls: 'akaire-title__roma', text: 'Akaire' });
+    this.elPhase = header.createSpan({
       cls: 'akaire-phase',
       text: '待機',
       attr: { 'data-phase': 'idle' },
     });
 
     // ---- meta line (file, last-reviewed)
-    this.elMeta = wrap.createEl('div', { cls: 'akaire-meta' });
+    this.elMeta = wrap.createDiv({ cls: 'akaire-meta' });
 
     // ---- action bar
-    this.elActions = wrap.createEl('div', { cls: 'akaire-actions' });
+    this.elActions = wrap.createDiv({ cls: 'akaire-actions' });
     this.elActions.createEl('button', {
       text: '全文をレビュー',
       cls: 'is-primary',
@@ -85,27 +85,27 @@ export class SidebarView extends ItemView {
     });
 
     // ---- transient state (empty / reviewing / error)
-    this.elState = wrap.createEl('div', { cls: 'akaire-state' });
+    this.elState = wrap.createDiv({ cls: 'akaire-state' });
 
     // ---- comments section
-    this.elSection = wrap.createEl('div');
-    const head = this.elSection.createEl('div', { cls: 'akaire-section-head' });
+    this.elSection = wrap.createDiv();
+    const head = this.elSection.createDiv({ cls: 'akaire-section-head' });
     head.createEl('h4', {
       cls: 'akaire-section-head__title',
       text: '指摘',
     });
-    head.createEl('span', {
+    head.createSpan({
       cls: 'akaire-section-head__count',
       attr: { id: 'akaire-section-count' },
       text: '— 件',
     });
-    this.elLegend = this.elSection.createEl('div', { cls: 'akaire-legend' });
-    this.elCards = this.elSection.createEl('div', { cls: 'akaire-cards' });
-    this.elSection.style.display = 'none';
+    this.elLegend = this.elSection.createDiv({ cls: 'akaire-legend' });
+    this.elCards = this.elSection.createDiv({ cls: 'akaire-cards' });
+    this.elSection.addClass('akaire-hidden');
 
     // ---- chat
-    const chat = wrap.createEl('div', { cls: 'akaire-chat' });
-    const chatHead = chat.createEl('div', { cls: 'akaire-chat__head' });
+    const chat = wrap.createDiv({ cls: 'akaire-chat' });
+    const chatHead = chat.createDiv({ cls: 'akaire-chat__head' });
     chatHead.createEl('h4', {
       cls: 'akaire-chat__title',
       text: '編集者と対話する',
@@ -115,7 +115,7 @@ export class SidebarView extends ItemView {
       text: 'レビュー結果について追問できます。同じ会話セッションが続きます。',
     });
 
-    this.elChatHints = chat.createEl('div', { cls: 'akaire-chat__hints' });
+    this.elChatHints = chat.createDiv({ cls: 'akaire-chat__hints' });
     for (const hint of CHAT_HINTS) {
       const chip = this.elChatHints.createEl('button', {
         cls: 'akaire-chat__hint',
@@ -130,25 +130,25 @@ export class SidebarView extends ItemView {
       });
     }
 
-    this.elChatLog = chat.createEl('div', { cls: 'akaire-chat__log' });
+    this.elChatLog = chat.createDiv({ cls: 'akaire-chat__log' });
 
     this.elChatLocked = chat.createEl('p', {
       cls: 'akaire-chat__locked',
       text: '— レビュー実行後に対話できます',
     });
 
-    const form = chat.createEl('div', { cls: 'akaire-chat__form' });
+    const form = chat.createDiv({ cls: 'akaire-chat__form' });
     this.elChatInput = form.createEl('textarea', {
       cls: 'akaire-chat__input',
       attr: { placeholder: '例: もっと厳しく見て', rows: '3' },
-    }) as HTMLTextAreaElement;
+    });
     this.elChatSend = form.createEl('button', {
       cls: 'akaire-chat__send',
       text: '送る',
       attr: { type: 'button' },
-    }) as HTMLButtonElement;
+    });
 
-    chat.createEl('div', {
+    chat.createDiv({
       cls: 'akaire-chat__shortcut',
       text: '⌘ + Enter で送信',
     });
@@ -157,9 +157,12 @@ export class SidebarView extends ItemView {
     this.renderEmpty();
     this.updateChatLockUI();
     this.wireActions();
+    return Promise.resolve();
   }
 
-  async onClose(): Promise<void> {}
+  onClose(): Promise<void> {
+    return Promise.resolve();
+  }
 
   bind(session: ReviewSession, editorView: EditorView): void {
     this.currentSession = session;
@@ -217,7 +220,7 @@ export class SidebarView extends ItemView {
     this.elCards.empty();
 
     if (comments.length === 0) {
-      this.elSection.style.display = 'none';
+      this.elSection.addClass('akaire-hidden');
       this.setStateBlock({
         kind: 'empty',
         title: '指摘なし',
@@ -227,9 +230,9 @@ export class SidebarView extends ItemView {
     }
 
     this.clearStateBlock();
-    this.elSection.style.display = '';
+    this.elSection.removeClass('akaire-hidden');
 
-    const countEl = this.containerEl.querySelector('#akaire-section-count') as HTMLElement | null;
+    const countEl = this.containerEl.querySelector('#akaire-section-count');
     if (countEl) countEl.setText(`${comments.length} 件`);
 
     this.renderLegend(comments.map((c) => c.comment.severity));
@@ -256,12 +259,12 @@ export class SidebarView extends ItemView {
     ];
 
     for (const it of items) {
-      const wrap = this.elLegend.createEl('span', {
+      const wrap = this.elLegend.createSpan({
         cls: `akaire-legend__item${counts[it.key] === 0 ? ' is-zero' : ''}`,
       });
-      wrap.createEl('span', { cls: `akaire-legend__bar akaire-legend__bar--${it.key}` });
-      wrap.createEl('span', { cls: 'akaire-legend__label', text: it.label });
-      wrap.createEl('span', { cls: 'akaire-legend__count', text: String(counts[it.key]) });
+      wrap.createSpan({ cls: `akaire-legend__bar akaire-legend__bar--${it.key}` });
+      wrap.createSpan({ cls: 'akaire-legend__label', text: it.label });
+      wrap.createSpan({ cls: 'akaire-legend__count', text: String(counts[it.key]) });
     }
   }
 
@@ -299,11 +302,11 @@ export class SidebarView extends ItemView {
       });
       this.elActions
         ?.querySelectorAll('button')
-        .forEach((b) => ((b as HTMLButtonElement).disabled = true));
+        .forEach((b) => ((b).disabled = true));
     } else {
       this.elActions
         ?.querySelectorAll('button')
-        .forEach((b) => ((b as HTMLButtonElement).disabled = false));
+        .forEach((b) => ((b).disabled = false));
     }
   }
 
@@ -316,7 +319,7 @@ export class SidebarView extends ItemView {
     if (!this.elState) return;
     this.elState.empty();
     this.elState.setAttribute('data-kind', opts.kind);
-    this.elState.style.display = '';
+    this.elState.removeClass('akaire-hidden');
     this.elState.createEl('p', { cls: 'akaire-state__title', text: opts.title });
     this.elState.createEl('p', { cls: 'akaire-state__body', text: opts.body });
     if (opts.hint) {
@@ -326,12 +329,12 @@ export class SidebarView extends ItemView {
   private clearStateBlock(): void {
     if (!this.elState) return;
     this.elState.empty();
-    this.elState.style.display = 'none';
+    this.elState.addClass('akaire-hidden');
   }
 
   private renderEmpty(): void {
     this.elCards?.empty();
-    this.elSection.style.display = 'none';
+    this.elSection.addClass('akaire-hidden');
     this.setPhase('idle');
     this.setStateBlock({
       kind: 'empty',
@@ -345,33 +348,33 @@ export class SidebarView extends ItemView {
     if (!this.elMeta) return;
     this.elMeta.empty();
     if (!this.currentSession) {
-      this.elMeta.createEl('span', {
+      this.elMeta.createSpan({
         cls: 'akaire-meta__label',
         text: '対象 :',
       });
-      this.elMeta.createEl('span', {
+      this.elMeta.createSpan({
         cls: 'akaire-meta__file',
         text: '—',
       });
       return;
     }
-    const path = (this.currentSession as any).opts?.notePath ?? '';
-    const baseName = path.split('/').pop() || path;
-    this.elMeta.createEl('span', {
+    const path = this.currentSession.notePath;
+    const baseName = path.split('/').pop() ?? path;
+    this.elMeta.createSpan({
       cls: 'akaire-meta__label',
       text: '対象 :',
     });
-    this.elMeta.createEl('span', {
+    this.elMeta.createSpan({
       cls: 'akaire-meta__file',
       text: baseName,
     });
     if (reviewedAt) {
-      this.elMeta.createEl('span', { cls: 'akaire-meta__sep', text: '·' });
-      this.elMeta.createEl('span', {
+      this.elMeta.createSpan({ cls: 'akaire-meta__sep', text: '·' });
+      this.elMeta.createSpan({
         cls: 'akaire-meta__label',
         text: '最終レビュー',
       });
-      this.elMeta.createEl('span', {
+      this.elMeta.createSpan({
         cls: 'akaire-meta__time',
         text: formatTime(reviewedAt),
       });
@@ -383,16 +386,16 @@ export class SidebarView extends ItemView {
     const hasSession = !!this.currentSession?.sessionId;
     this.elChatInput.disabled = !hasSession;
     this.elChatSend.disabled = !hasSession;
-    this.elChatLocked.style.display = hasSession ? 'none' : '';
+    this.elChatLocked.toggleClass('akaire-hidden', hasSession);
     if (this.elChatHints) {
-      this.elChatHints.style.display = hasSession ? '' : 'none';
+      this.elChatHints.toggleClass('akaire-hidden', !hasSession);
     }
   }
 
   private wireActions(): void {
     if (!this.actions || !this.elActions) return;
-    const full = this.elActions.querySelector('[data-action="review-full"]') as HTMLButtonElement | null;
-    const diff = this.elActions.querySelector('[data-action="review-diff"]') as HTMLButtonElement | null;
+    const full = this.elActions.querySelector<HTMLButtonElement>('[data-action="review-full"]');
+    const diff = this.elActions.querySelector<HTMLButtonElement>('[data-action="review-diff"]');
     if (full) full.onclick = () => this.actions!.onReviewFull();
     if (diff) diff.onclick = () => this.actions!.onReviewDiff();
   }
@@ -443,20 +446,22 @@ export class SidebarView extends ItemView {
       }
     };
 
-    this.elChatSend.onclick = send;
+    this.elChatSend.onclick = () => {
+      void send();
+    };
     this.elChatInput.addEventListener('keydown', (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
         e.preventDefault();
-        send();
+        void send();
       }
     });
   }
 
   private appendChatMsg(kind: 'user' | 'ai' | 'err', text: string): void {
-    const msg = this.elChatLog.createEl('div', {
+    const msg = this.elChatLog.createDiv({
       cls: `akaire-chat__msg akaire-chat__msg--${kind}`,
     });
-    msg.createEl('div', { cls: 'akaire-chat__msg__body', text });
+    msg.createDiv({ cls: 'akaire-chat__msg__body', text });
     this.elChatLog.scrollTop = this.elChatLog.scrollHeight;
   }
 
