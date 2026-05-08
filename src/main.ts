@@ -89,12 +89,12 @@ export default class EditorPlugin extends Plugin {
     this.addCommand({
       id: 'review-changed',
       name: 'Akaire: Review changed paragraphs',
-      callback: () => this.runReview('diff'),
+      editorCallback: () => this.runReview('diff'),
     });
     this.addCommand({
       id: 'review-full',
       name: 'Akaire: Review whole note',
-      callback: () => this.runReview('full'),
+      editorCallback: () => this.runReview('full'),
     });
     this.addCommand({
       id: 'open-sidebar',
