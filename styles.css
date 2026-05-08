@@ -1,39 +1,667 @@
-.editor-anchor-ai {
-  border-bottom: 1px dotted var(--color-purple);
+/* ============================================================
+   Akaire — editorial proofreading aesthetic
+   "赤入れ" — manuscript markup with red ink
+   ============================================================ */
+
+.workspace-leaf-content[data-type="editor-plugin-sidebar"] .view-content {
+  --akaire-ink: var(--text-normal);
+  --akaire-ink-soft: var(--text-muted);
+  --akaire-ink-faint: var(--text-faint);
+  --akaire-paper: var(--background-primary);
+  --akaire-paper-alt: var(--background-secondary);
+  --akaire-rule: var(--background-modifier-border);
+  --akaire-red: #c8362a;
+  --akaire-indigo: #2f5d9c;
+  --akaire-indigo-tint: rgba(47, 93, 156, 0.10);
+  --akaire-red-tint: rgba(200, 54, 42, 0.08);
+  --akaire-red-tint-strong: rgba(200, 54, 42, 0.16);
+  --akaire-amber: #b8742a;
+  --akaire-slate: #4a5566;
+  --akaire-serif: 'Noto Serif JP', 'Hiragino Mincho ProN', 'Yu Mincho',
+    '游明朝', YuMincho, 'Hiragino Mincho Pro', 'Sawarabi Mincho',
+    'MS PMincho', Georgia, 'Times New Roman', serif;
+  --akaire-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  padding: 0;
+  font-feature-settings: 'palt' 1;
 }
-.editor-anchor-textlint {
-  border-bottom: 2px wavy var(--color-red);
+
+/* root container — keep the manuscript-paper vertical rule on the left */
+.akaire-root {
+  position: relative;
+  padding: 18px 18px 18px 22px;
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--akaire-ink);
 }
-.editor-card {
-  border-left: 3px solid var(--color-purple);
-  padding: 8px 12px;
-  margin-bottom: 8px;
-  background: var(--background-secondary);
-  border-radius: 4px;
+.akaire-root::before {
+  content: '';
+  position: absolute;
+  left: 8px;
+  top: 18px;
+  bottom: 18px;
+  width: 1px;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    var(--akaire-rule) 12%,
+    var(--akaire-rule) 88%,
+    transparent
+  );
 }
-.editor-card-stale { opacity: 0.5; }
-.editor-card-warning { border-left-color: var(--color-red); }
-.editor-card-info { border-left-color: var(--color-blue); }
-.editor-stale-badge {
+
+/* ---- header ---- */
+.akaire-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--akaire-rule);
+  margin-bottom: 14px;
+}
+.akaire-title {
+  font-family: var(--akaire-serif);
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  color: var(--akaire-ink);
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.akaire-title__kanji {
+  position: relative;
+  padding-right: 6px;
+}
+.akaire-title__kanji::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: 2px;
+  width: 6px;
+  height: 6px;
+  background: var(--akaire-red);
+  border-radius: 50%;
+}
+.akaire-title__roma {
+  font-family: var(--akaire-mono);
   font-size: 10px;
-  background: var(--background-modifier-error);
+  font-weight: 400;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--akaire-ink-faint);
+}
+
+/* phase pill — status indicator on the top right */
+.akaire-phase {
+  font-family: var(--akaire-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--akaire-rule);
+  color: var(--akaire-ink-soft);
+  background: transparent;
+  white-space: nowrap;
+}
+.akaire-phase[data-phase="reviewing"] {
+  color: var(--akaire-red);
+  border-color: var(--akaire-red);
+  background: var(--akaire-red-tint);
+  animation: akaire-pulse 1.6s ease-in-out infinite;
+}
+.akaire-phase[data-phase="reviewed"] {
+  color: var(--akaire-slate);
+  border-color: var(--akaire-slate);
+}
+.akaire-phase[data-phase="error"] {
+  color: var(--akaire-red);
+  border-color: var(--akaire-red);
+  background: var(--akaire-red-tint);
+}
+@keyframes akaire-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+/* note-meta line: which file is bound */
+.akaire-meta {
+  font-size: 11px;
+  color: var(--akaire-ink-soft);
+  margin-bottom: 14px;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.akaire-meta__label {
+  font-family: var(--akaire-mono);
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--akaire-ink-faint);
+}
+.akaire-meta__file {
+  font-family: var(--akaire-serif);
+  font-size: 12px;
+  color: var(--akaire-ink);
+}
+.akaire-meta__sep { color: var(--akaire-ink-faint); }
+.akaire-meta__time {
+  font-family: var(--akaire-mono);
+  font-size: 10px;
+  color: var(--akaire-ink-faint);
+}
+
+/* ---- action bar ---- */
+.akaire-actions {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.akaire-actions button {
+  flex: 1;
+  font-size: 12px;
+  padding: 7px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--akaire-rule);
+  background: var(--akaire-paper);
+  color: var(--akaire-ink);
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease, transform 80ms ease;
+  font-feature-settings: 'palt' 1;
+}
+.akaire-actions button:hover {
+  background: var(--akaire-paper-alt);
+  border-color: var(--akaire-ink-faint);
+}
+.akaire-actions button:active { transform: translateY(1px); }
+.akaire-actions button.is-primary {
+  border-color: var(--akaire-red);
+  color: var(--akaire-red);
+  background: var(--akaire-red-tint);
+  font-weight: 600;
+}
+.akaire-actions button.is-primary:hover {
+  background: var(--akaire-red-tint-strong);
+}
+.akaire-actions button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ---- empty / loading / error blocks ---- */
+.akaire-state {
+  border: 1px dashed var(--akaire-rule);
+  border-radius: 6px;
+  padding: 14px 14px;
+  margin-bottom: 14px;
+  background: transparent;
+}
+.akaire-state__title {
+  font-family: var(--akaire-serif);
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0 0 4px 0;
+  color: var(--akaire-ink);
+}
+.akaire-state__body {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--akaire-ink-soft);
+}
+.akaire-state__hint {
+  margin-top: 8px;
+  font-family: var(--akaire-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--akaire-ink-faint);
+}
+.akaire-state[data-kind="reviewing"] {
+  border-style: solid;
+  border-color: var(--akaire-red);
+  background: var(--akaire-red-tint);
+}
+.akaire-state[data-kind="reviewing"] .akaire-state__title {
+  color: var(--akaire-red);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.akaire-state[data-kind="reviewing"] .akaire-state__title::before {
+  content: '';
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--akaire-red);
+  animation: akaire-blink 1s ease-in-out infinite;
+}
+@keyframes akaire-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+.akaire-state[data-kind="error"] {
+  border-style: solid;
+  border-color: var(--akaire-red);
+  background: var(--akaire-red-tint);
+}
+.akaire-state[data-kind="error"] .akaire-state__title {
+  color: var(--akaire-red);
+}
+
+/* ---- comments section ---- */
+.akaire-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 4px 0 10px 0;
+}
+.akaire-section-head__title {
+  font-family: var(--akaire-serif);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--akaire-ink);
+  margin: 0;
+}
+.akaire-section-head__count {
+  font-family: var(--akaire-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--akaire-ink-faint);
+  text-transform: uppercase;
+}
+
+.akaire-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 6px 8px;
+  margin: 0 0 10px 0;
+  border: 1px solid var(--akaire-rule);
+  border-radius: 4px;
+  background: var(--akaire-paper);
+  font-size: 11px;
+  color: var(--akaire-ink-soft);
+}
+.akaire-legend:empty { display: none; }
+.akaire-legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.akaire-legend__item.is-zero { opacity: 0.35; }
+.akaire-legend__bar {
+  display: inline-block;
+  width: 3px;
+  height: 14px;
+  border-radius: 1px;
+  background: var(--akaire-slate);
+}
+.akaire-legend__bar--warning { background: var(--akaire-red); }
+.akaire-legend__bar--suggestion { background: var(--akaire-indigo); }
+.akaire-legend__bar--info { background: var(--akaire-slate); }
+.akaire-legend__label {
+  font-family: var(--akaire-serif);
+  font-size: 11px;
+  color: var(--akaire-ink);
+}
+.akaire-legend__count {
+  font-family: var(--akaire-mono);
+  font-size: 10px;
+  color: var(--akaire-ink-faint);
+  letter-spacing: 0.04em;
+}
+
+.akaire-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.akaire-card {
+  position: relative;
+  padding: 12px 12px 10px 36px;
+  border-radius: 6px;
+  background: var(--akaire-paper-alt);
+  border: 1px solid var(--akaire-rule);
+  border-left: 3px solid var(--akaire-slate);
+  animation: akaire-card-in 220ms ease both;
+}
+@keyframes akaire-card-in {
+  from { opacity: 0; transform: translateY(2px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.akaire-card[data-severity="warning"] { border-left-color: var(--akaire-red); }
+.akaire-card[data-severity="suggestion"] { border-left-color: var(--akaire-indigo); }
+.akaire-card[data-severity="info"] { border-left-color: var(--akaire-slate); }
+.akaire-card.is-stale {
+  opacity: 0.45;
+}
+.akaire-card.is-resolved {
+  opacity: 0.55;
+}
+
+/* numeric marker — like a 校正記号 reference number */
+.akaire-card__num {
+  position: absolute;
+  top: 11px;
+  left: 10px;
+  font-family: var(--akaire-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--akaire-ink-soft);
+  width: 20px;
+  text-align: right;
+  line-height: 1;
+  padding-top: 2px;
+}
+.akaire-card[data-severity="warning"] .akaire-card__num { color: var(--akaire-red); }
+
+/* severity badge — Japanese label */
+.akaire-card__sev {
+  display: inline-block;
+  font-family: var(--akaire-mono);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  font-weight: 600;
+  text-transform: uppercase;
   padding: 2px 6px;
   border-radius: 3px;
+  margin-bottom: 6px;
+  background: var(--akaire-paper);
+  color: var(--akaire-ink-soft);
+  border: 1px solid var(--akaire-rule);
 }
-.editor-card-buttons {
+.akaire-card[data-severity="warning"] .akaire-card__sev {
+  color: var(--akaire-red);
+  border-color: var(--akaire-red);
+  background: var(--akaire-red-tint);
+}
+.akaire-card[data-severity="suggestion"] .akaire-card__sev {
+  color: var(--akaire-indigo);
+  border-color: var(--akaire-indigo);
+  background: var(--akaire-indigo-tint);
+}
+
+/* quote — what the editor pointed at */
+.akaire-card__quote {
+  font-family: var(--akaire-serif);
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--akaire-ink);
+  margin: 0 0 6px 0;
+  padding: 0;
+  position: relative;
+}
+.akaire-card__quote::before {
+  content: '「';
+  color: var(--akaire-red);
+  font-weight: 600;
+  margin-right: 1px;
+}
+.akaire-card__quote::after {
+  content: '」';
+  color: var(--akaire-red);
+  font-weight: 600;
+  margin-left: 1px;
+}
+
+.akaire-card__msg {
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--akaire-ink-soft);
+  margin: 0 0 8px 0;
+}
+
+.akaire-card__suggestion {
+  font-family: var(--akaire-serif);
+  font-size: 12px;
+  background: var(--akaire-paper);
+  border: 1px solid var(--akaire-rule);
+  border-left: 2px solid var(--akaire-indigo);
+  border-radius: 3px;
+  padding: 6px 8px;
+  margin: 0 0 8px 0;
+  color: var(--akaire-ink);
+  line-height: 1.6;
+}
+.akaire-card__suggestion__label {
+  display: block;
+  font-family: var(--akaire-mono);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  color: var(--akaire-ink-faint);
+  margin-bottom: 2px;
+  text-transform: uppercase;
+}
+
+.akaire-card__buttons {
   display: flex;
   gap: 4px;
-  margin-top: 8px;
+  margin-top: 4px;
+  flex-wrap: wrap;
 }
-.editor-card-buttons button {
+.akaire-card__buttons button {
   font-size: 11px;
-  padding: 2px 8px;
+  padding: 3px 9px;
+  border-radius: 3px;
+  border: 1px solid var(--akaire-rule);
+  background: var(--akaire-paper);
+  color: var(--akaire-ink-soft);
+  cursor: pointer;
+  font-feature-settings: 'palt' 1;
+  transition: color 120ms, border-color 120ms, background 120ms;
 }
-.editor-banner {
-  background: var(--background-modifier-error-hover);
-  padding: 6px 10px;
-  border-radius: 4px;
+.akaire-card__buttons button:hover {
+  color: var(--akaire-ink);
+  border-color: var(--akaire-ink-faint);
+}
+.akaire-card__buttons button.is-primary {
+  color: var(--akaire-red);
+  border-color: var(--akaire-red);
+  background: var(--akaire-red-tint);
+  font-weight: 600;
+}
+.akaire-card__buttons button.is-primary:hover {
+  background: var(--akaire-red-tint-strong);
+}
+
+.akaire-card__stale {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-family: var(--akaire-mono);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  color: var(--akaire-ink-faint);
+  border: 1px solid var(--akaire-rule);
+  padding: 1px 6px;
+  border-radius: 2px;
+}
+
+/* ---- conversation ---- */
+.akaire-chat {
+  border-top: 1px solid var(--akaire-rule);
+  padding-top: 14px;
+}
+
+.akaire-chat__head {
   margin-bottom: 8px;
-  font-size: 12px;
 }
-.editor-banner:empty { display: none; }
+.akaire-chat__title {
+  font-family: var(--akaire-serif);
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0 0 2px 0;
+  color: var(--akaire-ink);
+}
+.akaire-chat__sub {
+  font-size: 11px;
+  color: var(--akaire-ink-faint);
+  margin: 0;
+  line-height: 1.6;
+}
+
+.akaire-chat__hints {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin: 8px 0;
+}
+.akaire-chat__hint {
+  font-size: 10px;
+  font-family: var(--akaire-serif);
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--akaire-rule);
+  background: transparent;
+  color: var(--akaire-ink-soft);
+  cursor: pointer;
+  transition: color 120ms, border-color 120ms, background 120ms;
+}
+.akaire-chat__hint:hover {
+  color: var(--akaire-red);
+  border-color: var(--akaire-red);
+  background: var(--akaire-red-tint);
+}
+
+.akaire-chat__log {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 8px 0;
+  max-height: 300px;
+  overflow-y: auto;
+}
+.akaire-chat__log:empty { display: none; }
+
+.akaire-chat__msg {
+  font-size: 12px;
+  line-height: 1.65;
+  padding: 8px 10px;
+  border-radius: 4px;
+  position: relative;
+  padding-top: 18px;
+}
+.akaire-chat__msg::before {
+  position: absolute;
+  top: 5px;
+  left: 10px;
+  font-family: var(--akaire-mono);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.akaire-chat__msg--user {
+  background: var(--akaire-paper-alt);
+  border: 1px solid var(--akaire-rule);
+  color: var(--akaire-ink);
+}
+.akaire-chat__msg--user::before {
+  content: 'YOU';
+  color: var(--akaire-ink-faint);
+}
+.akaire-chat__msg--ai {
+  background: var(--akaire-red-tint);
+  border: 1px solid var(--akaire-red);
+  color: var(--akaire-ink);
+}
+.akaire-chat__msg--ai::before {
+  content: 'AKAIRE';
+  color: var(--akaire-red);
+  font-weight: 600;
+}
+.akaire-chat__msg--err {
+  background: var(--akaire-paper-alt);
+  border: 1px solid var(--akaire-red);
+  color: var(--akaire-red);
+}
+.akaire-chat__msg--err::before {
+  content: 'ERROR';
+  color: var(--akaire-red);
+}
+.akaire-chat__msg__body {
+  white-space: pre-wrap;
+  font-family: var(--akaire-serif);
+}
+
+.akaire-chat__form {
+  display: flex;
+  gap: 6px;
+  align-items: flex-end;
+}
+.akaire-chat__input {
+  flex: 1;
+  resize: vertical;
+  min-height: 56px;
+  max-height: 200px;
+  font-size: 12px;
+  font-family: var(--akaire-serif);
+  padding: 7px 9px;
+  border: 1px solid var(--akaire-rule);
+  border-radius: 4px;
+  background: var(--akaire-paper);
+  color: var(--akaire-ink);
+  line-height: 1.6;
+  font-feature-settings: 'palt' 1;
+}
+.akaire-chat__input:focus {
+  outline: none;
+  border-color: var(--akaire-red);
+  box-shadow: 0 0 0 2px var(--akaire-red-tint);
+}
+.akaire-chat__input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.akaire-chat__send {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 7px 12px;
+  border-radius: 4px;
+  border: 1px solid var(--akaire-red);
+  background: var(--akaire-red);
+  color: #fff;
+  cursor: pointer;
+  align-self: stretch;
+  white-space: nowrap;
+  font-feature-settings: 'palt' 1;
+  transition: background 120ms, transform 80ms;
+}
+.akaire-chat__send:hover { background: #b22e23; }
+.akaire-chat__send:active { transform: translateY(1px); }
+.akaire-chat__send:disabled {
+  background: var(--akaire-paper-alt);
+  color: var(--akaire-ink-faint);
+  border-color: var(--akaire-rule);
+  cursor: not-allowed;
+}
+.akaire-chat__shortcut {
+  font-family: var(--akaire-mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  color: var(--akaire-ink-faint);
+  margin-top: 4px;
+  text-align: right;
+}
+.akaire-chat__locked {
+  font-size: 11px;
+  color: var(--akaire-ink-faint);
+  font-style: italic;
+  padding: 6px 0;
+  line-height: 1.6;
+}
+
+/* ---- editor anchor decorations (kept) ---- */
+.editor-anchor-ai {
+  border-bottom: 1.5px dotted var(--akaire-red, #c8362a);
+}
+.editor-anchor-textlint {
+  border-bottom: 2px wavy var(--color-orange, #b8742a);
+}

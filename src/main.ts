@@ -38,6 +38,7 @@ export default class EditorPlugin extends Plugin {
       claudeBinary: claudeBin,
       spawn,
       timeoutMs: 180_000, // claude -p は10〜60秒かかることがあるので余裕を持つ
+      model: 'sonnet',
     });
     this.textlint = new TextlintRunner({
       binary: textlintBin,
@@ -52,7 +53,14 @@ export default class EditorPlugin extends Plugin {
       fs: makeFsApi(this.app),
     });
 
-    this.registerView(VIEW_TYPE_EDITOR, (leaf) => new SidebarView(leaf));
+    this.registerView(VIEW_TYPE_EDITOR, (leaf) => {
+      const v = new SidebarView(leaf);
+      v.setActions({
+        onReviewFull: () => this.runReview('full'),
+        onReviewDiff: () => this.runReview('diff'),
+      });
+      return v;
+    });
     this.registerEditorExtension(anchorField);
 
     this.registerEvent(
@@ -89,11 +97,29 @@ export default class EditorPlugin extends Plugin {
   }
 
   private async onLeafChange(leaf: WorkspaceLeaf | null): Promise<void> {
-    this.currentAbort?.abort();
-    const myGen = ++this.leafGen;
-
     const sidebars = this.app.workspace.getLeavesOfType(VIEW_TYPE_EDITOR);
     const sidebarView = sidebars[0]?.view as SidebarView | undefined;
+
+    const view = leaf?.view instanceof MarkdownView ? leaf.view : null;
+    const targetFile = view?.file ?? null;
+
+    // 非markdownリーフ（サイドバー自身、設定画面など）にフォーカスが移っただけの
+    // ケースでは現在のバインディングを保持する。これがないと Jump で本文に
+    // 飛ばしたり、サイドバーを直接クリックしただけでセッションがリセットされる。
+    if (!targetFile || !view) {
+      return;
+    }
+
+    // 同じファイルなら EditorView 参照だけ更新して終了（再描画しない）
+    if (this.session && this.session.notePath === targetFile.path) {
+      const cm = (view.editor as any).cm as EditorView;
+      sidebarView?.setEditorView?.(cm);
+      return;
+    }
+
+    // ここから本物の切り替え
+    this.currentAbort?.abort();
+    const myGen = ++this.leafGen;
 
     if (this.session) {
       await this.session.persist();
@@ -101,9 +127,6 @@ export default class EditorPlugin extends Plugin {
       this.session = null;
       sidebarView?.unbind?.();
     }
-    if (!leaf) return;
-    const view = leaf.view;
-    if (!(view instanceof MarkdownView) || !view.file) return;
 
     const newSession = await this.makeSession(view);
     if (myGen !== this.leafGen) return;
@@ -176,15 +199,26 @@ export default class EditorPlugin extends Plugin {
     const startView = this.app.workspace.getActiveViewOfType(MarkdownView);
     const targetFile = startView?.file;
 
+    const sidebar = (): SidebarView | undefined =>
+      this.app.workspace.getLeavesOfType(VIEW_TYPE_EDITOR)[0]?.view as SidebarView | undefined;
+
+    sidebar()?.setPhase?.('reviewing');
+
     try {
       await this.session.runReview(mode, this.currentAbort.signal);
       log('info', 'runReview completed', {
         sessionId: this.session.sessionId,
         commentCount: this.session.comments.length,
       });
+      sidebar()?.setBanner?.(null);
+      sidebar()?.markReviewed?.();
     } catch (e) {
-      if ((e as Error).message === 'aborted') return;
+      if ((e as Error).message === 'aborted') {
+        sidebar()?.setPhase?.('idle');
+        return;
+      }
       log('error', 'runReview failed', { error: (e as Error).message });
+      sidebar()?.setBanner?.(`レビュー失敗: ${(e as Error).message}`);
       return;
     }
     // 開始時のファイルがまだ同じなら frontmatter に書き戻す
