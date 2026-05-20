@@ -1,6 +1,6 @@
 {
   "name": "akaire",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Local AI editor for Obsidian using Claude Code CLI",
   "main": "dist/main.js",
   "scripts": {
