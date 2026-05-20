@@ -1,7 +1,7 @@
 {
   "id": "akaire",
   "name": "Akaire",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "minAppVersion": "1.7.2",
   "description": "Local AI editor that reviews your writing using Claude Code CLI.",
   "author": "asonas",
