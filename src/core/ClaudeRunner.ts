@@ -302,6 +302,10 @@ export class ClaudeRunner {
       });
 
       if (child.stdin) {
+        // EPIPE can fire asynchronously if claude exits before consuming stdin
+        // (a short-circuit error, or a stub in tests). Swallow it; the exit
+        // path is handled by the close handler above.
+        child.stdin.on('error', () => {});
         child.stdin.write(stdin);
         child.stdin.end();
       }
