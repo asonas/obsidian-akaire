@@ -64,7 +64,9 @@ export class PromptResolver {
     const match = content.match(/^---\n([\s\S]*?)\n---\n/);
     if (!match) return null;
     try {
-      return parseYaml(match[1]);
+      const parsed = parseYaml(match[1]) as unknown;
+      if (parsed === null || typeof parsed !== 'object') return null;
+      return parsed as Record<string, unknown>;
     } catch {
       return null;
     }

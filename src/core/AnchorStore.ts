@@ -33,10 +33,13 @@ export class AnchorStore {
     const content = await this.opts.fs.readFile(filePath);
     if (!content) return { anchors: [], chat: [] };
     try {
-      const parsed = JSON.parse(content);
+      const parsed = JSON.parse(content) as Partial<{
+        anchors: unknown;
+        chat: unknown;
+      }>;
       return {
-        anchors: Array.isArray(parsed.anchors) ? parsed.anchors : [],
-        chat: Array.isArray(parsed.chat) ? parsed.chat : [],
+        anchors: Array.isArray(parsed.anchors) ? (parsed.anchors as PersistedAnchor[]) : [],
+        chat: Array.isArray(parsed.chat) ? (parsed.chat as ChatMessage[]) : [],
       };
     } catch {
       return { anchors: [], chat: [] };

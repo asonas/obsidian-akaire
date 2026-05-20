@@ -247,7 +247,7 @@ export class ClaudeRunner {
         signal.addEventListener('abort', abortHandler);
       }
 
-      child.stdout?.on('data', (d) => {
+      child.stdout?.on('data', (d: Buffer) => {
         if (firstStdoutAt === null) {
           firstStdoutAt = Date.now();
           log('info', 'ClaudeRunner first stdout', {
@@ -256,7 +256,7 @@ export class ClaudeRunner {
         }
         stdout += d.toString();
       });
-      child.stderr?.on('data', (d) => { stderr += d.toString(); });
+      child.stderr?.on('data', (d: Buffer) => { stderr += d.toString(); });
       child.on('error', (e) => {
         clearTimeout(timer);
         if (abortHandler) signal?.removeEventListener('abort', abortHandler);
@@ -316,11 +316,19 @@ export class ClaudeRunner {
     stdout: string,
   ): { result: string; session_id: string; structured_output?: unknown } {
     try {
-      const obj = JSON.parse(stdout);
+      const obj = JSON.parse(stdout) as Partial<{
+        result: unknown;
+        session_id: unknown;
+        structured_output: unknown;
+      }>;
       if (typeof obj.result !== 'string' || typeof obj.session_id !== 'string') {
         throw new Error('missing fields');
       }
-      return obj;
+      return {
+        result: obj.result,
+        session_id: obj.session_id,
+        structured_output: obj.structured_output,
+      };
     } catch (e) {
       throw new ClaudeRunError(`Invalid claude JSON: ${(e as Error).message}`, stdout);
     }

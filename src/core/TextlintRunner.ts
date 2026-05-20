@@ -67,8 +67,8 @@ export class TextlintRunner {
       const child = this.opts.spawn(this.opts.binary, args, cwd ? { cwd } : undefined);
       let stdout = '';
       let stderr = '';
-      child.stdout?.on('data', (d) => { stdout += d.toString(); });
-      child.stderr?.on('data', (d) => { stderr += d.toString(); });
+      child.stdout?.on('data', (d: Buffer) => { stdout += d.toString(); });
+      child.stderr?.on('data', (d: Buffer) => { stderr += d.toString(); });
       child.on('error', (e) => {
         log('error', 'TextlintRunner spawn error', { binary: this.opts.binary, error: e.message });
         resolve({ available: false, reason: `spawn error: ${e.message}` });
@@ -88,10 +88,8 @@ export class TextlintRunner {
           return;
         }
         try {
-          const arr = JSON.parse(stdout);
-          const messages: TextlintMessage[] = (arr[0]?.messages ?? []).map(
-            (m: TextlintMessage) => m
-          );
+          const arr = JSON.parse(stdout) as Array<{ messages?: TextlintMessage[] }> | undefined;
+          const messages: TextlintMessage[] = arr?.[0]?.messages ?? [];
           resolve({ available: true, messages });
         } catch (e) {
           resolve({ available: false, reason: `parse failed: ${(e as Error).message}` });
