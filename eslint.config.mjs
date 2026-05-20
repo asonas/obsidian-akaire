@@ -21,6 +21,9 @@ export default defineConfig([
       "obsidianmd/prefer-create-el": "off",
       // Not in bot's required list; minAppVersion bump is a separate decision.
       "obsidianmd/no-unsupported-api": "off",
+      // `any` is banned project-wide. Validate at the boundary into `unknown`,
+      // then narrow with type guards or explicit assertions.
+      "@typescript-eslint/no-explicit-any": "error",
     },
   },
   {

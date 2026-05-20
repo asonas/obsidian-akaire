@@ -29,6 +29,8 @@ jobs:
 
       - run: pnpm run lint:css
 
+      - run: pnpm run lint:ts
+
       - run: pnpm test
 
       - run: pnpm run build
