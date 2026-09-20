@@ -2,7 +2,7 @@ import type { ReviewComment, PersistedAnchor, ChatMessage, AnchorStatus } from '
 import { findAnchor } from '../editor/anchorMatcher';
 import { splitParagraphs, paragraphHash, diffParagraphs } from '../util/paragraphHash';
 import { log } from '../util/logger';
-import type { ClaudeRunner } from './ClaudeRunner';
+import type { ReviewRunner } from './ReviewRunner';
 import type { TextlintRunner } from './TextlintRunner';
 import type { PromptResolver } from './PromptResolver';
 
@@ -23,7 +23,7 @@ export interface ReviewSessionOpts {
   notePath: string;
   editor: EditorBridge;
   anchorStore: AnchorStoreApi;
-  runner: Pick<ClaudeRunner, 'review' | 'chat'>;
+  runner: ReviewRunner;
   textlint: Pick<TextlintRunner, 'lint'>;
   promptResolver: Pick<PromptResolver, 'resolvePrompt'>;
   vaultDir: string;

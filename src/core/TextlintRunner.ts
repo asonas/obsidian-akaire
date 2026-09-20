@@ -39,16 +39,21 @@ export class TextlintRunner {
       // .textlintrc がノートの祖先ディレクトリに無い場合に使う既定の設定ファイル。
       // Akaireはプラグインフォルダに同梱した.textlintrc.jsonを渡す。
       defaultConfigPath?: string;
+      fallback?: { lint(filePath: string): Promise<TextlintResult> };
     }
   ) {}
 
   async lint(filePath: string): Promise<TextlintResult> {
     // textlint は CWD から `.textlintrc` を探すので、ファイルのあるディレクトリを cwd にする
     const cwd = isAbsolute(filePath) ? dirname(filePath) : undefined;
+    const hasUpwardConfig = !!cwd && findUpwardTextlintrc(cwd);
+    if (cwd && !hasUpwardConfig && this.opts.fallback) {
+      return this.opts.fallback.lint(filePath);
+    }
     const useDefault =
       !!this.opts.defaultConfigPath &&
       !!cwd &&
-      !findUpwardTextlintrc(cwd) &&
+      !hasUpwardConfig &&
       existsSync(this.opts.defaultConfigPath);
     const args = [
       ...(this.opts.preArgs ?? []),
@@ -71,7 +76,13 @@ export class TextlintRunner {
       child.stderr?.on('data', (d: Buffer) => { stderr += d.toString(); });
       child.on('error', (e) => {
         log('error', 'TextlintRunner spawn error', { binary: this.opts.binary, error: e.message });
-        resolve({ available: false, reason: `spawn error: ${e.message}` });
+        if (this.opts.fallback) {
+          void this.opts.fallback.lint(filePath).then(resolve, (fallbackError: Error) => {
+            resolve({ available: false, reason: `built-in textlint error: ${fallbackError.message}` });
+          });
+        } else {
+          resolve({ available: false, reason: `spawn error: ${e.message}` });
+        }
       });
       child.on('close', (code) => {
         log('info', 'TextlintRunner closed', { code, stdoutLen: stdout.length, stderr: stderr.trim() });

@@ -12,13 +12,18 @@ import { EditorView } from '@codemirror/view';
 import { SidebarView, VIEW_TYPE_EDITOR } from './ui/SidebarView';
 import { ReviewSession } from './core/ReviewSession';
 import { ClaudeRunner } from './core/ClaudeRunner';
+import { CodexRunner } from './core/CodexRunner';
+import { OllamaRunner } from './core/OllamaRunner';
+import type { ReviewRunner } from './core/ReviewRunner';
 import { TextlintRunner } from './core/TextlintRunner';
+import { BuiltinTextlintRunner } from './core/BuiltinTextlintRunner';
 import { AnchorStore } from './core/AnchorStore';
 import { PromptResolver } from './core/PromptResolver';
 import { makeFsApi, makeAnchorFsApi } from './util/obsidianFs';
 import { resolveBinary } from './util/resolveBinary';
 import { log } from './util/logger';
 import { anchorField, jumpFlashField, setAnchorMarks, clearAnchorMarks } from './editor/decoration';
+import { AkaireSettingTab, DEFAULT_SETTINGS, type AkaireSettings } from './settings';
 
 // Obsidian の Editor は内部に CodeMirror 6 の EditorView を持つ。
 // 公式型では未公開なので、最小限のローカル型で読み出す。
@@ -30,15 +35,17 @@ function getCmView(editor: Editor): EditorView {
 }
 
 export default class EditorPlugin extends Plugin {
+  settings: AkaireSettings = DEFAULT_SETTINGS;
   private session: ReviewSession | null = null;
-  private runner!: ClaudeRunner;
+  private runner!: ReviewRunner;
   private textlint!: TextlintRunner;
   private anchorStore!: AnchorStore;
   private promptResolver!: PromptResolver;
   private currentAbort: AbortController | null = null;
   private leafGen = 0;
 
-  onload(): void {
+  async onload(): Promise<void> {
+    this.settings = { ...DEFAULT_SETTINGS, ...(await this.loadData() as Partial<AkaireSettings> | null) };
     const vaultRoot = this.getVaultRoot();
     log('info', 'plugin onload start', {
       vaultRoot,
@@ -47,27 +54,16 @@ export default class EditorPlugin extends Plugin {
     });
 
     const claudeBin = resolveBinary('claude');
+    const codexBin = resolveBinary('codex');
     const textlintBin = resolveBinary('textlint');
-    log('info', 'binaries resolved', { claudeBin, textlintBin });
+    log('info', 'binaries resolved', { claudeBin, codexBin, textlintBin });
 
-    this.runner = new ClaudeRunner({
-      claudeBinary: claudeBin,
-      spawn,
-      timeoutMs: 180_000,
-      model: 'sonnet',
-    });
-    // プラグイン同梱の .textlintrc.json をフォールバックとして渡す。
-    // ノート祖先に .textlintrc が見つかればそちらを優先するので、
-    // ユーザ独自の設定は壊れない。
-    const defaultTextlintConfig = this.manifest.dir
-      ? normalizePath(`${vaultRoot}/${this.manifest.dir}/.textlintrc.json`)
-      : undefined;
+    this.runner = this.createRunner({ claudeBin, codexBin });
     this.textlint = new TextlintRunner({
       binary: textlintBin,
       spawn,
-      defaultConfigPath: defaultTextlintConfig,
+      fallback: new BuiltinTextlintRunner(),
     });
-    log('info', 'textlint default config', { defaultTextlintConfig });
     this.anchorStore = new AnchorStore({
       vaultRoot,
       fs: makeAnchorFsApi(this.app),
@@ -76,6 +72,7 @@ export default class EditorPlugin extends Plugin {
       vaultRoot,
       fs: makeFsApi(this.app),
     });
+    this.addSettingTab(new AkaireSettingTab(this.app, this));
 
     this.registerView(VIEW_TYPE_EDITOR, (leaf) => {
       const v = new SidebarView(leaf);
@@ -126,6 +123,40 @@ export default class EditorPlugin extends Plugin {
     });
     this.addRibbonIcon('edit-3', 'Akaire', () => {
       void this.activateView();
+    });
+  }
+
+  async saveSettings(): Promise<void> {
+    await this.saveData(this.settings);
+    this.runner = this.createRunner({
+      claudeBin: resolveBinary('claude'),
+      codexBin: resolveBinary('codex'),
+    });
+    this.session = null;
+    const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+    void this.onLeafChange(view?.leaf ?? null);
+  }
+
+  private createRunner(binaries: { claudeBin: string; codexBin: string }): ReviewRunner {
+    if (this.settings.provider === 'codex') {
+      return new CodexRunner({
+        binary: binaries.codexBin,
+        spawn,
+        timeoutMs: 180_000,
+        model: this.settings.codexModel || undefined,
+      });
+    }
+    if (this.settings.provider === 'ollama') {
+      return new OllamaRunner({
+        baseUrl: this.settings.ollamaBaseUrl,
+        model: this.settings.ollamaModel,
+      });
+    }
+    return new ClaudeRunner({
+      claudeBinary: binaries.claudeBin,
+      spawn,
+      timeoutMs: 180_000,
+      model: this.settings.claudeModel || undefined,
     });
   }
 

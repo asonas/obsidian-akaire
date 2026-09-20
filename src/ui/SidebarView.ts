@@ -297,7 +297,7 @@ export class SidebarView extends ItemView {
     if (phase === 'reviewing') {
       this.setStateBlock({
         kind: 'reviewing',
-        title: 'Claudeが原稿を読んでいます',
+        title: 'LLMが原稿を読んでいます',
         body: '完了まで通常10〜60秒ほどかかります。長文の場合はそれ以上かかることがあります。',
       });
       this.elActions

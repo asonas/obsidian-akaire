@@ -2,6 +2,9 @@ import type { ChildProcess } from 'node:child_process';
 import type { ReviewComment } from '../types';
 import { log } from '../util/logger';
 import { extractJsonObject } from '../util/extractJsonObject';
+import type { ChatArgs, ReviewArgs, ReviewResult } from './ReviewRunner';
+
+export type { ChatArgs, KeepAsIsItem, ReviewArgs, ReviewResult } from './ReviewRunner';
 
 export type SpawnFn = (
   cmd: string,
@@ -14,38 +17,6 @@ export interface ClaudeRunnerOpts {
   spawn: SpawnFn;
   timeoutMs: number;
   model?: string;
-}
-
-export interface KeepAsIsItem {
-  quote: string;
-  message: string;
-  suggestion?: string;
-}
-
-export interface ReviewArgs {
-  text: string;
-  systemPrompt: string;
-  textlintFindings?: unknown[];
-  keepAsIs?: KeepAsIsItem[];
-  sessionId: string | null;
-  vaultDir: string;
-  signal?: AbortSignal;
-}
-
-export interface ReviewResult {
-  comments: ReviewComment[];
-  newSessionId: string;
-  // デバッグ用に Claude の生 stdout（JSON）と、structured_output が
-  // あればそれを返す。永続化して動作不審の原因調査に使う。
-  rawStdout?: string;
-  structuredOutput?: unknown;
-}
-
-export interface ChatArgs {
-  message: string;
-  sessionId: string;
-  vaultDir: string;
-  signal?: AbortSignal;
 }
 
 export class ClaudeRunError extends Error {
