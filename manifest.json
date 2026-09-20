@@ -2,7 +2,7 @@
   "id": "akaire",
   "name": "Akaire",
   "version": "0.3.2",
-  "minAppVersion": "1.7.2",
+  "minAppVersion": "1.13.0",
   "description": "Local AI editor using Claude Code, Codex, or Ollama.",
   "author": "asonas",
   "isDesktopOnly": true

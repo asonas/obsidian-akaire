@@ -14,7 +14,7 @@
 export type LogLevel = 'info' | 'warn' | 'error' | 'debug';
 
 function debugEnabled(): boolean {
-  return Boolean((globalThis as { akaireDebug?: unknown }).akaireDebug);
+  return Boolean((window as typeof window & { akaireDebug?: unknown }).akaireDebug);
 }
 
 export function log(level: LogLevel, message: string, data?: unknown): void {

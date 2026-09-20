@@ -1,11 +1,11 @@
 import type { ReviewComment } from '../types';
 
-export interface CommentCardCallbacks {
+export type CommentCardCallbacks = {
   onApply(commentId: string): void;
   onKeep(commentId: string): void;
   onClose(commentId: string): void;
   onJump(commentId: string): void;
-}
+};
 
 const SEVERITY_LABEL: Record<ReviewComment['severity'], string> = {
   warning: '要修正',
@@ -20,21 +20,21 @@ export function renderCommentCard(
   stale: boolean,
   cb: CommentCardCallbacks
 ): HTMLElement {
-  const card = parent.createEl('div', {
+  const card = parent.createDiv({
     cls: `akaire-card${stale ? ' is-stale' : ''}`,
     attr: { 'data-severity': comment.severity },
   });
 
-  card.createEl('span', {
+  card.createSpan({
     cls: 'akaire-card__num',
     text: formatIndex(index),
   });
 
   if (stale) {
-    card.createEl('span', { cls: 'akaire-card__stale', text: '無効' });
+    card.createSpan({ cls: 'akaire-card__stale', text: '無効' });
   }
 
-  card.createEl('span', {
+  card.createSpan({
     cls: 'akaire-card__sev',
     text: SEVERITY_LABEL[comment.severity] ?? comment.severity,
   });
@@ -50,15 +50,15 @@ export function renderCommentCard(
   });
 
   if (comment.suggestion) {
-    const sug = card.createEl('div', { cls: 'akaire-card__suggestion' });
-    sug.createEl('span', {
+    const sug = card.createDiv({ cls: 'akaire-card__suggestion' });
+    sug.createSpan({
       cls: 'akaire-card__suggestion__label',
       text: '修正案',
     });
     sug.appendText(comment.suggestion);
   }
 
-  const buttons = card.createEl('div', { cls: 'akaire-card__buttons' });
+  const buttons = card.createDiv({ cls: 'akaire-card__buttons' });
 
   if (comment.suggestion) {
     const apply = buttons.createEl('button', {

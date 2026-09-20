@@ -197,7 +197,7 @@ export class ClaudeRunner {
       let stdout = '';
       let stderr = '';
       let firstStdoutAt: number | null = null;
-      const timer = setTimeout(() => {
+      const timer = window.setTimeout(() => {
         const elapsedMs = Date.now() - t0;
         log('error', 'ClaudeRunner timeout', {
           elapsedMs,
@@ -229,7 +229,7 @@ export class ClaudeRunner {
       });
       child.stderr?.on('data', (d: Buffer) => { stderr += d.toString(); });
       child.on('error', (e) => {
-        clearTimeout(timer);
+        window.clearTimeout(timer);
         if (abortHandler) signal?.removeEventListener('abort', abortHandler);
         log('error', 'ClaudeRunner spawn error', {
           error: e.message,
@@ -238,7 +238,7 @@ export class ClaudeRunner {
         reject(new ClaudeRunError(`spawn failed: ${e.message}`, stderr));
       });
       child.on('close', (code) => {
-        clearTimeout(timer);
+        window.clearTimeout(timer);
         if (abortHandler) signal?.removeEventListener('abort', abortHandler);
         const totalMs = Date.now() - t0;
         log('info', 'ClaudeRunner closed', {

@@ -21,7 +21,7 @@ Choose the provider and model in Obsidian's Akaire settings. Claude Code and Cod
 
 ## Requirements
 
-- Obsidian 1.7.2 or newer. Desktop only, because the plugin shells out to a CLI.
+- Obsidian 1.13.0 or newer. Desktop only, because the plugin shells out to a CLI.
 - The CLI for the selected remote provider: [Claude Code](https://docs.claude.com/en/docs/claude-code/overview) or [Codex](https://developers.openai.com/codex/cli/).
 - For Ollama, a running local server and a pulled model.
 
@@ -59,7 +59,7 @@ Comment anchors are stored under `.editor-state/` at the root of your vault. Add
 
 ## Network use
 
-Akaire sends the reviewed note through the selected provider. Claude Code and Codex are spawned as subprocesses and communicate with their configured remote services. Ollama requests are sent to the configured base URL, which defaults to `http://localhost:11434`. Custom Ollama headers are stored unencrypted in the plugin's Obsidian data file and are included in both connection tests and chat requests. The bundled textlint integration runs entirely locally.
+Akaire sends the reviewed note through the selected provider. Claude Code and Codex are spawned as subprocesses and communicate with their configured remote services. Ollama requests are sent to the configured base URL, which defaults to `http://localhost:11434`. Custom Ollama headers are stored using Obsidian SecretStorage and are included in both connection tests and chat requests. The bundled textlint integration runs entirely locally.
 
 Claude Code and Codex authentication is handled by the selected CLI. For Ollama, Akaire stores and sends only the custom headers entered in its settings. Akaire does not include telemetry or an auto-update mechanism.
 
@@ -68,7 +68,7 @@ Claude Code and Codex authentication is handled by the selected CLI. For Ollama,
 The Obsidian community directory flags two capabilities that Akaire uses by design. Both are required for the plugin to function, and what they are used for is described below.
 
 - **Shell execution (`child_process`)**: Akaire spawns the selected Claude Code or Codex CLI and, for a vault-owned custom configuration, the `textlint` CLI. No shell is involved. The note body is passed through stdin rather than interpolated into a command.
-- **Direct filesystem access (`fs`)**: Akaire reads and writes a small set of files using the Node.js `fs` module rather than the Obsidian `Vault` API. Specifically, it writes per-note anchor state under `.editor-state/` at the vault root, reads `.editor.md` files for prompt inheritance, and resolves a project-local `.textlintrc(.json)` walked up from the note's directory. All of these paths sit inside the vault tree. Direct filesystem access is used because the `Vault` API does not cover dotfiles outside of `data.json`, and because the `claude` and `textlint` CLIs themselves need real filesystem paths to operate on. Akaire does not read or modify any file outside the vault tree.
+- **Direct filesystem access (`fs`)**: Akaire uses the Node.js filesystem API to locate installed CLI executables on `PATH`, detect project-local `.textlintrc(.json)` files, and read the current note for the bundled textlint fallback. The configuration files and note are limited to the vault tree, while executable candidates can be outside the vault. Akaire does not write files through the Node.js filesystem API; per-note anchor state and inherited `.editor.md` files are handled through the Obsidian vault adapter.
 
 ## Development
 

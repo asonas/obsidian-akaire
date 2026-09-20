@@ -57,11 +57,11 @@ export class CodexRunner {
       const finish = (error?: Error) => {
         if (settled) return;
         settled = true;
-        clearTimeout(timer);
+        window.clearTimeout(timer);
         signal?.removeEventListener('abort', abort);
         if (error) reject(error);
       };
-      const timer = setTimeout(() => {
+      const timer = window.setTimeout(() => {
         child.kill('SIGKILL');
         finish(new Error('Codex timeout'));
       }, this.opts.timeoutMs);
@@ -95,7 +95,7 @@ export class CodexRunner {
           }
           if (!sessionId || !reply) throw new Error('missing thread or agent message');
           settled = true;
-          clearTimeout(timer);
+          window.clearTimeout(timer);
           signal?.removeEventListener('abort', abort);
           resolve({ stdout, reply, sessionId });
         } catch (error) {

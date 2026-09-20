@@ -16,6 +16,7 @@ import { ClaudeRunner } from './core/ClaudeRunner';
 import { CodexRunner } from './core/CodexRunner';
 import { OllamaRunner } from './core/OllamaRunner';
 import { OllamaClient, parseHttpHeaders } from './core/OllamaClient';
+import { storeOllamaHeadersSecret } from './core/OllamaHeaderSecret';
 import type { ReviewRunner } from './core/ReviewRunner';
 import { TextlintRunner } from './core/TextlintRunner';
 import { BuiltinTextlintRunner } from './core/BuiltinTextlintRunner';
@@ -26,6 +27,10 @@ import { resolveBinary } from './util/resolveBinary';
 import { log } from './util/logger';
 import { anchorField, jumpFlashField, setAnchorMarks, clearAnchorMarks } from './editor/decoration';
 import { AkaireSettingTab, DEFAULT_SETTINGS, type AkaireSettings } from './settings';
+
+type StoredAkaireSettings = Partial<AkaireSettings> & {
+  ollamaHeaders?: unknown;
+};
 
 // Obsidian の Editor は内部に CodeMirror 6 の EditorView を持つ。
 // 公式型では未公開なので、最小限のローカル型で読み出す。
@@ -47,7 +52,7 @@ export default class EditorPlugin extends Plugin {
   private leafGen = 0;
 
   async onload(): Promise<void> {
-    this.settings = { ...DEFAULT_SETTINGS, ...(await this.loadData() as Partial<AkaireSettings> | null) };
+    await this.loadSettings();
     const vaultRoot = this.getVaultRoot();
     log('info', 'plugin onload start', {
       vaultRoot,
@@ -92,6 +97,7 @@ export default class EditorPlugin extends Plugin {
 
     this.registerEvent(
       this.app.workspace.on('active-leaf-change', (leaf) => {
+        if (!this.app.workspace.layoutReady) return;
         void this.onLeafChange(leaf);
       })
     );
@@ -142,7 +148,7 @@ export default class EditorPlugin extends Plugin {
   async testOllamaConnection(): Promise<string[]> {
     const client = new OllamaClient({
       baseUrl: this.settings.ollamaBaseUrl,
-      headers: parseHttpHeaders(this.settings.ollamaHeaders),
+      headers: parseHttpHeaders(this.getOllamaHeaders()),
     }, requestUrl);
     return client.listModels();
   }
@@ -160,7 +166,7 @@ export default class EditorPlugin extends Plugin {
       return new OllamaRunner({
         baseUrl: this.settings.ollamaBaseUrl,
         model: this.settings.ollamaModel,
-        headersText: this.settings.ollamaHeaders,
+        headersText: this.getOllamaHeaders(),
       });
     }
     return new ClaudeRunner({
@@ -169,6 +175,29 @@ export default class EditorPlugin extends Plugin {
       timeoutMs: 180_000,
       model: this.settings.claudeModel || undefined,
     });
+  }
+
+  private async loadSettings(): Promise<void> {
+    const stored = (await this.loadData() ?? {}) as StoredAkaireSettings;
+    const legacyHeaders = stored.ollamaHeaders;
+    const current = { ...stored };
+    delete current.ollamaHeaders;
+    this.settings = { ...DEFAULT_SETTINGS, ...current };
+
+    if (!this.settings.ollamaHeadersSecret
+      && typeof legacyHeaders === 'string'
+      && legacyHeaders.trim()) {
+      this.settings.ollamaHeadersSecret = storeOllamaHeadersSecret(
+        legacyHeaders,
+        this.app.secretStorage,
+      );
+    }
+    if ('ollamaHeaders' in stored) await this.saveData(this.settings);
+  }
+
+  private getOllamaHeaders(): string {
+    const secretId = this.settings.ollamaHeadersSecret;
+    return secretId ? this.app.secretStorage.getSecret(secretId) ?? '' : '';
   }
 
   onunload(): void {

@@ -2,7 +2,7 @@ import { ItemView, WorkspaceLeaf } from 'obsidian';
 import { EditorView } from '@codemirror/view';
 import { setJumpFlash } from '../editor/decoration';
 import { log } from '../util/logger';
-import { renderCommentCard, CommentCardCallbacks } from './CommentCard';
+import { renderCommentCard, type CommentCardCallbacks } from './CommentCard';
 import type { ReviewComment } from '../types';
 import type { ReviewSession } from '../core/ReviewSession';
 
@@ -10,10 +10,10 @@ export const VIEW_TYPE_EDITOR = 'editor-plugin-sidebar';
 
 export type SidebarPhase = 'idle' | 'reviewing' | 'reviewed' | 'error';
 
-export interface SidebarActions {
+export type SidebarActions = {
   onReviewFull: () => void;
   onReviewDiff: () => void;
-}
+};
 
 const CHAT_HINTS = [
   'もっと厳しく',
@@ -54,7 +54,7 @@ export class SidebarView extends ItemView {
   }
 
   onOpen(): Promise<void> {
-    const root = this.containerEl.children[1] as HTMLElement;
+    const root = this.contentEl;
     root.empty();
     const wrap = root.createDiv({ cls: 'akaire-root' });
 
