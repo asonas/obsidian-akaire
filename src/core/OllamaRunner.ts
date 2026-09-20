@@ -4,13 +4,14 @@ import type { ReviewComment } from '../types';
 import { extractJsonObject } from '../util/extractJsonObject';
 import { buildReviewUserPrompt, REVIEW_SCHEMA } from './ClaudeRunner';
 import type { ChatArgs, ReviewArgs, ReviewResult } from './ReviewRunner';
+import { OllamaClient, parseHttpHeaders } from './OllamaClient';
 
 type OllamaMessage = { role: 'system' | 'user' | 'assistant'; content: string };
 
 export class OllamaRunner {
   private sessions = new Map<string, OllamaMessage[]>();
 
-  constructor(private opts: { baseUrl: string; model: string }) {}
+  constructor(private opts: { baseUrl: string; model: string; headersText?: string }) {}
 
   async review(args: ReviewArgs): Promise<ReviewResult> {
     const messages: OllamaMessage[] = [
@@ -41,20 +42,17 @@ export class OllamaRunner {
 
   private async request(messages: OllamaMessage[], format: unknown, signal?: AbortSignal): Promise<string> {
     if (signal?.aborted) throw new Error('aborted');
-    const response = await requestUrl({
-      url: `${this.opts.baseUrl.replace(/\/$/, '')}/api/chat`,
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ model: this.opts.model, messages, stream: false, ...(format ? { format } : {}) }),
-      throw: false,
+    const client = new OllamaClient({
+      baseUrl: this.opts.baseUrl,
+      headers: parseHttpHeaders(this.opts.headersText ?? ''),
+    }, requestUrl);
+    const content = await client.chat({
+      model: this.opts.model,
+      messages,
+      stream: false,
+      ...(format ? { format } : {}),
     });
     if (signal?.aborted) throw new Error('aborted');
-    if (response.status < 200 || response.status >= 300) {
-      throw new Error(`Ollama HTTP ${response.status}: ${response.text}`);
-    }
-    const body = response.json as { message?: { content?: string }; error?: string };
-    if (body.error) throw new Error(body.error);
-    if (!body.message?.content) throw new Error('Ollama returned no message');
-    return body.message.content;
+    return content;
   }
 }

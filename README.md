@@ -17,7 +17,7 @@ I wanted a writing reviewer that lives inside Obsidian instead of a separate tab
 - Codex CLI
 - Ollama
 
-Choose the provider and model in Obsidian's Akaire settings. Claude Code and Codex reuse their existing CLI authentication. Ollama uses its local HTTP API; its model must already be pulled.
+Choose the provider and model in Obsidian's Akaire settings. Claude Code and Codex reuse their existing CLI authentication. For Ollama, configure its API URL and optional HTTP headers, then run the connection test to load models already pulled on that server. Custom headers can be used for Cloudflare Access service-token authentication.
 
 ## Requirements
 
@@ -59,9 +59,9 @@ Comment anchors are stored under `.editor-state/` at the root of your vault. Add
 
 ## Network use
 
-Akaire sends the reviewed note through the selected provider. Claude Code and Codex are spawned as subprocesses and communicate with their configured remote services. Ollama requests are sent to the configured base URL, which defaults to `http://localhost:11434`. The bundled textlint integration runs entirely locally.
+Akaire sends the reviewed note through the selected provider. Claude Code and Codex are spawned as subprocesses and communicate with their configured remote services. Ollama requests are sent to the configured base URL, which defaults to `http://localhost:11434`. Custom Ollama headers are stored unencrypted in the plugin's Obsidian data file and are included in both connection tests and chat requests. The bundled textlint integration runs entirely locally.
 
-Authentication is handled by the selected CLI, not by Akaire. Akaire never reads or stores provider credentials, and it does not include telemetry or an auto-update mechanism.
+Claude Code and Codex authentication is handled by the selected CLI. For Ollama, Akaire stores and sends only the custom headers entered in its settings. Akaire does not include telemetry or an auto-update mechanism.
 
 ## Local system access
 

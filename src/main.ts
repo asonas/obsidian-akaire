@@ -6,6 +6,7 @@ import {
   Editor,
   FileSystemAdapter,
   normalizePath,
+  requestUrl,
 } from 'obsidian';
 import { spawn } from 'node:child_process';
 import { EditorView } from '@codemirror/view';
@@ -14,6 +15,7 @@ import { ReviewSession } from './core/ReviewSession';
 import { ClaudeRunner } from './core/ClaudeRunner';
 import { CodexRunner } from './core/CodexRunner';
 import { OllamaRunner } from './core/OllamaRunner';
+import { OllamaClient, parseHttpHeaders } from './core/OllamaClient';
 import type { ReviewRunner } from './core/ReviewRunner';
 import { TextlintRunner } from './core/TextlintRunner';
 import { BuiltinTextlintRunner } from './core/BuiltinTextlintRunner';
@@ -137,6 +139,14 @@ export default class EditorPlugin extends Plugin {
     void this.onLeafChange(view?.leaf ?? null);
   }
 
+  async testOllamaConnection(): Promise<string[]> {
+    const client = new OllamaClient({
+      baseUrl: this.settings.ollamaBaseUrl,
+      headers: parseHttpHeaders(this.settings.ollamaHeaders),
+    }, requestUrl);
+    return client.listModels();
+  }
+
   private createRunner(binaries: { claudeBin: string; codexBin: string }): ReviewRunner {
     if (this.settings.provider === 'codex') {
       return new CodexRunner({
@@ -150,6 +160,7 @@ export default class EditorPlugin extends Plugin {
       return new OllamaRunner({
         baseUrl: this.settings.ollamaBaseUrl,
         model: this.settings.ollamaModel,
+        headersText: this.settings.ollamaHeaders,
       });
     }
     return new ClaudeRunner({
